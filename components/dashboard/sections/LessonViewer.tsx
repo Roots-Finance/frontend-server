@@ -7,11 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { TransactionChart, ChartLine } from "@/components/dashboard/charts/TransactionChart";
 import { Lesson } from "@/components/dashboard/sections/BudgetingSection";
-import { ExtraTransaction } from "@/hooks/useDataUser";
+import { ITransaction } from "@/lib/types";
 
 interface LessonViewerProps {
   lesson: Lesson;
-  chartData: ExtraTransaction[];
+  chartData: ITransaction[];
   lines: ChartLine[];
   onClose: () => void;
   onComplete: (lessonId: string) => void;

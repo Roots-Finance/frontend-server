@@ -137,20 +137,13 @@ export function TransactionChart({
 
   // Update visible data when zoom or data changes
   useEffect(() => {
-    const currentInputs = { 
+    // Always update visible data when the data prop changes
+    setVisibleData(calculateVisibleData(data, zoomLevel, zoomCenter));
+    prevCalcInputsRef.current = { 
       dataLength: data.length, 
       zoomLevel, 
       zoomCenter 
     };
-    
-    // Only recalculate if inputs have changed
-    if (prevCalcInputsRef.current.dataLength !== currentInputs.dataLength ||
-        prevCalcInputsRef.current.zoomLevel !== currentInputs.zoomLevel ||
-        prevCalcInputsRef.current.zoomCenter !== currentInputs.zoomCenter) {
-      
-      setVisibleData(calculateVisibleData(data, zoomLevel, zoomCenter));
-      prevCalcInputsRef.current = currentInputs;
-    }
   }, [data, zoomLevel, zoomCenter]);
 
   // Event handlers for panning

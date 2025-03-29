@@ -251,45 +251,33 @@ export function useDataUser(): DataUserReturn {
         return;
       }
       
-      // 2. Get transactions for each account using our new Nessi transactions endpoint
-      let allTransactions: ITransaction[] = [];
 
-      console.log(accounts)
-      
-      for (const account of accounts) {
-        const transactionResponse = await fetch(`/api/nessi/get-transactions?accountId=${account.account_id}`);
-        
-        if (!transactionResponse.ok) {
-          console.warn(`Failed to get transactions for account ${account.account_id}: ${transactionResponse.status}`);
-          continue; // Skip to next account if we can't get transactions for this one
-        }
-        
-        const transactionData = await transactionResponse.json() as ITransaction[];
-        const accountTransactions = transactionData;
-        
-        // Add transactions to our collection
-        if (accountTransactions && accountTransactions.length > 0) {
-          allTransactions = [...allTransactions, ...accountTransactions];
-        }
+      const allTransactions = await fetch(`/api/nessi/get-transactions?userId=${encodedUserId}`);
+ 
+      if (!allTransactions.ok) {
+        console.warn(`Failed to get transactions: ${allTransactions.status}`);
+        setData({ accounts: [], transactions: [] });
       }
       
+      const transactionData = await allTransactions.json() as ITransaction[];
+
       // The transactions should already be sorted and have the overallTotal calculated by our API
       // But we'll double-check to make sure they're properly processed
       
       // Sort transactions by date (newest first) if needed
-      allTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      transactionData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       
       // Calculate overall balance for each transaction if needed
-      if (allTransactions.length > 0 && allTransactions[0].overallTotal === 0) {
+      if (transactionData.length > 0 && transactionData[0].overallTotal === 0) {
         let overallTotal = 0;
-        for (const transaction of allTransactions) {
+        for (const transaction of transactionData) {
           transaction.overallTotal = overallTotal -= transaction.amount;
         }
       }
       
       setData({
         accounts,
-        transactions: allTransactions
+        transactions: transactionData
       });
     } catch (error) {
       console.error("Error fetching NESSI data:", error);
