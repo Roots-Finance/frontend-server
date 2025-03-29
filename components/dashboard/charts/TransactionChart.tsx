@@ -32,7 +32,7 @@ export function TransactionChart({
   lines = [],
   children,
 }: TransactionChartProps) {
-  
+
 
   // Zoom and pan state
   const [zoomLevel, setZoomLevel] = useState(1);
@@ -204,7 +204,7 @@ export function TransactionChart({
         </div>
         {payload[0].payload.name && (
           <span className={`mt-2 text-sm ${getTransactionColor(payload[0].payload)} px-1 rounded-sm`}>
-            {payload[0].payload.name} (${(-payload[0].payload.amount || 0).toFixed(2)})
+            {payload[0].payload.name} {payload[0].payload.isCredit ? '' : '-'}${(payload[0].payload.amount || 0).toFixed(2)}
           </span>
         )}
       </div>

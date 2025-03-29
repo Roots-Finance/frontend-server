@@ -199,6 +199,7 @@ export function useDataUser(): DataUserReturn {
         name: transaction.name,
         pending: transaction.pending,
         overallTotal: 0, // Placeholder for overall total
+        isCredit: false
       }));
 
       let overallTotal = 0;

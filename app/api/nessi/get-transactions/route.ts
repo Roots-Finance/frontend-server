@@ -24,17 +24,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json([], { status: 200 });
     }
     
+    console.log(transactions)
     // Map the transactions to the ITransaction format if needed
     const formattedTransactions: ITransaction[] = transactions.map(transaction => ({
       amount: transaction.amount,
       account_id: accountId,
       transaction_id: transaction.id,
       date: transaction.date,
-      merchant_name: transaction.merchant_name || transaction.description || "UNKNOWN",
+      merchant_name: transaction.merchant || transaction.description || "UNKNOWN",
       category: transaction.category || "UNKNOWN",
-      name: transaction.description || transaction.merchant_name || "UNKNOWN",
+      name: transaction.description || transaction.merchant || "UNKNOWN",
       pending: transaction.pending || false,
-      overallTotal: 0 // This will be calculated later
+      overallTotal: 0, // This will be calculated later
+      isCredit: transaction.type === 'CREDIT',
     }));
     
     // Sort transactions by date (newest first)
@@ -43,8 +45,8 @@ export async function GET(request: NextRequest) {
     // Calculate overall balance
     let overallTotal = 0;
     for (const transaction of formattedTransactions) {
-      // Calculate overall balance
-      overallTotal -= transaction.amount;
+      // Calculate overall balance_
+      overallTotal = overallTotal + (transaction.isCredit ? transaction.amount: -transaction.amount);
       transaction.overallTotal = overallTotal;
     }
     

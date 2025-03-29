@@ -8,7 +8,7 @@ export interface ITransaction {
   name: string; // name of transaction, can be considered a description. IE: Uber #2832, merchant is Uber
   pending: boolean; // this should basically always be false (for our use case)
   overallTotal: number; // across EVERY account registered for a user, what is the current total? (This maybe needs to be done on frontend, so perhaps don't inclue and I'll handle it.)
-
+  isCredit: boolean;
 }
 
 export interface IAccount {

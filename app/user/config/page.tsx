@@ -146,6 +146,8 @@ export default function UserConfig() {
     }
   }, [isLoading, user]);
 
+  // Initialize data
+
   // Plaid connection handlers
   const fetchPlaidLinkToken = async () => {
     try {
