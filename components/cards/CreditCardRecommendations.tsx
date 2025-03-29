@@ -15,7 +15,7 @@ const creditCards = [
     savings: 750,
     description:
       "The Chase Sapphire Preferred offers excellent travel rewards with a generous sign-up bonus and flexible redemption options. Earn 2x points on travel and dining worldwide, with no foreign transaction fees.",
-    image: "/credit-cards/chase-sapphire-preferred.png" // Replace with actual path
+    image: "https://images-ext-1.discordapp.net/external/AlnHyjSJC1ZLXHow7abq9zmidCzklZohHA8iSvYiCKU/https/online.citi.com/CBOL/family/cards/card-art/costco-anywhere/costco-anywhere_247x156.png?format=webp&quality=lossless&width=1740&height=1088" // Replace with actual path
   },
   {
     id: 2,
@@ -24,7 +24,7 @@ const creditCards = [
     savings: 600,
     description:
       "The American Express Gold Card is perfect for foodies, offering 4x points at restaurants and supermarkets. Enjoy monthly dining and Uber credits that help offset the annual fee.",
-    image: "/credit-cards/amex-gold.png" // Replace with actual path
+    image: "https://images-ext-1.discordapp.net/external/AlnHyjSJC1ZLXHow7abq9zmidCzklZohHA8iSvYiCKU/https/online.citi.com/CBOL/family/cards/card-art/costco-anywhere/costco-anywhere_247x156.png?format=webp&quality=lossless&width=1740&height=1088" // Replace with actual path
   },
   {
     id: 3,
@@ -33,7 +33,7 @@ const creditCards = [
     savings: 800,
     description:
       "The Capital One Venture X provides premium travel benefits at a reasonable price point. Enjoy airport lounge access, annual travel credits, and 10x miles on hotels and rental cars booked through Capital One Travel.",
-    image: "/credit-cards/capital-one-venture.png" // Replace with actual path
+    image: "https://www.penfed.org/content/dam/penfed/en/products/credit-cards/cards/platinum-rewards.webp" // Replace with actual path
   },
   {
     id: 4,
@@ -42,7 +42,7 @@ const creditCards = [
     savings: 400,
     description:
       "The Citi Double Cash card offers straightforward cash back with no annual fee. Earn effectively 2% on every purchase—1% when you buy and 1% when you pay your bill.",
-    image: "https://placehold.co/600x400" // Replace with actual path
+    image: "/credit-cards/citi-double-cash.png" // Replace with actual path
   },
   {
     id: 5,
@@ -126,7 +126,7 @@ export default function CreditCardRecommendations() {
                 key={card.id}
                 data-card-index={index}
                 className={cn(
-                  "relative transition-all duration-300",
+                  "relative transition-all duration-300 group",
                   isActive ? "h-[280px]" : "h-[100px]"
                 )}
                 onClick={() => {
@@ -141,34 +141,42 @@ export default function CreditCardRecommendations() {
                       })
                     }
                   }, 10)
-                }}
-              >
+                }}>
+                <div className={cn(
+                  "absolute inset-0 rounded-xl opacity-0 transition-opacity",
+                  isActive ? "bg-primary/5 opacity-100" : "group-hover:opacity-100 bg-primary/3"
+                )}></div>
                 <Card className={cn(
                   "h-full border rounded-xl transition-all",
                   isActive 
-                    ? "ring-2 ring-primary/20 shadow-md" 
-                    : "shadow-sm hover:shadow-md cursor-pointer"
+                    ? "ring-2 ring-primary/20 shadow-md dark:from-slate-900/50 dark:to-background" 
+                    : "shadow-sm hover:shadow-md cursor-pointer bg-background/80",
+                  "backdrop-blur-[2px]"
                 )}>
                   <CardContent className="flex p-0 h-full">
                     {/* Left column - Card image */}
                     <div className={cn(
-                      "flex items-center justify-center bg-slate-50 relative",
+                      "flex items-center justify-center relative",
                       isActive ? "w-2/5 p-6" : "w-1/4 p-4",
-                      "transition-all duration-300 rounded-l-xl"
+                      "transition-all duration-300 rounded-l-xl",
+                      isActive 
+                        ? "bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800/40 dark:to-slate-900/40" 
+                        : "bg-slate-50 dark:bg-slate-800/20"
                     )}>
-                      <div className={cn(
-                        "relative w-full", 
-                        isActive ? "h-[200px]" : "h-[70px]",
-                        "transition-all duration-300"
-                      )}>
-                        {/* Use placeholder.svg just for the example */}
-                        <Image
-                          src={`/placeholder.svg?height=${isActive ? 200 : 70}&width=${isActive ? 320 : 110}`}
-                          alt={`${card.bank} ${card.name} card`}
-                          fill
-                          className="object-contain"
-                        />
-                      </div>
+                    <div className={cn(
+                      "relative w-full flex items-center justify-center", 
+                      isActive ? "h-[200px]" : "h-[70px]",
+                      "transition-all duration-300"
+                    )}>
+                      <img
+                        src={card.image}
+                        alt={`${card.bank} ${card.name} card`}
+                        className="max-width-full max-h-full object-contain"
+                        style={{
+                          maxHeight: isActive ? '180px' : '60px'
+                        }}
+                      />
+                    </div>
                     </div>
 
                     {/* Right column - Card details */}
@@ -188,7 +196,7 @@ export default function CreditCardRecommendations() {
                         
                         <div className="flex items-center text-sm text-emerald-600 font-medium">
                           <span>Save up to ${card.savings}/year</span>
-                          <Star className="h-4 w-4 ml-1 fill-current" />
+                          <Star className="h-4 w-4 ml-1 fill-current text-yellow-400" />
                         </div>
 
                         {/* Description - only visible when expanded */}
@@ -197,7 +205,7 @@ export default function CreditCardRecommendations() {
                           isActive ? "max-h-40 mt-4 opacity-100" : "max-h-0 opacity-0"
                         )}>
                           <p className="text-muted-foreground text-sm leading-relaxed">{card.description}</p>
-                          <button className="mt-4 px-4 py-2 bg-primary text-primary-foreground text-sm rounded-md hover:bg-primary/90 transition-colors">
+                          <button className="mt-4 px-4 py-2 bg-primary text-primary-foreground text-sm rounded-md hover:bg-primary/90 transition-colors shadow-sm hover:shadow-md">
                             Apply Now
                           </button>
                         </div>
@@ -218,7 +226,7 @@ export default function CreditCardRecommendations() {
                       className={cn(
                         "p-3 rounded-full bg-background border shadow-sm transition-colors",
                         activeIndex > 0 
-                          ? "hover:bg-muted text-foreground" 
+                          ? "hover:bg-muted text-foreground hover:shadow-md hover:border-primary/30" 
                           : "text-muted-foreground cursor-not-allowed opacity-50"
                       )}
                       aria-label="Previous card"
@@ -234,7 +242,7 @@ export default function CreditCardRecommendations() {
                       className={cn(
                         "p-3 rounded-full bg-background border shadow-sm transition-colors",
                         activeIndex < creditCards.length - 1 
-                          ? "hover:bg-muted text-foreground" 
+                          ? "hover:bg-muted text-foreground hover:shadow-md hover:border-primary/30" 
                           : "text-muted-foreground cursor-not-allowed opacity-50"
                       )}
                       aria-label="Next card"
