@@ -28,12 +28,8 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("Error fetching user:", error);
     return NextResponse.json(
-      {
-        message: error instanceof Error ? error.message : "Failed to fetch user",
-        status: 0,
-        error: 1,
-      },
-      { status: 500 }
+
+      {}, { status: 500 }
     );
   }
 }

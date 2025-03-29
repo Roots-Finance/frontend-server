@@ -1,6 +1,6 @@
 import { DBUser, DBUserData } from "./types";
 
-export interface ApiResponse<T extends any> {
+export interface DBResponse<T extends any> {
   status: 0 | 1; // 0 for failure, 1 for success
   error: 0 | 1; // 0 for no error, 1 for error
   message?: string;
@@ -71,7 +71,7 @@ export class DBLib {
       body: JSON.stringify(userData),
     });
 
-    const data = (await response.json()) as ApiResponse<DBUser>;
+    const data = (await response.json()) as DBResponse<DBUser>;
 
     // Add statusCode to the response for internal tracking
     data.statusCode = response.status;
@@ -89,14 +89,14 @@ export class DBLib {
       throw new Error("Backend URL is not configured");
     }
 
-    const response = await fetch(`${this.baseUrl}/api/user/${oauthSub}`, {
+    const response = await fetch(`${this.baseUrl}/api/user/${encodeURIComponent(oauthSub)}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
       },
     });
 
-    const data = (await response.json()) as ApiResponse<DBUser>;
+    const data = (await response.json()) as DBResponse<DBUser>;
 
     // Add statusCode to the response for internal tracking
     data.statusCode = response.status;
@@ -111,7 +111,7 @@ export class DBLib {
    * @param updateData User data to update
    * @returns Promise with API response
    */
-  async updateUser(updateData: UpdateUserRequest): Promise<ApiResponse<DBUser>> {
+  async updateUser(updateData: UpdateUserRequest): Promise<DBResponse<DBUser>> {
     if (!this.baseUrl) {
       throw new Error("Backend URL is not configured");
     }
@@ -125,7 +125,7 @@ export class DBLib {
       body: JSON.stringify(updateData),
     });
 
-    const data = (await response.json()) as ApiResponse<DBUser>;
+    const data = (await response.json()) as DBResponse<DBUser>;
 
     // Add statusCode to the response for internal tracking
     data.statusCode = response.status;
@@ -150,7 +150,7 @@ export class DBLib {
       },
     });
 
-    const data = (await response.json()) as ApiResponse<NessiAccount[]>;
+    const data = (await response.json()) as DBResponse<NessiAccount[]>;
 
     // Add statusCode to the response for internal tracking if needed
     // data.statusCode = response.status;
@@ -175,7 +175,7 @@ export class DBLib {
       },
     });
 
-    const data = (await response.json()) as ApiResponse<NessiTransaction[]>;
+    const data = (await response.json()) as DBResponse<NessiTransaction[]>;
 
     return data.data;
   }
@@ -215,7 +215,7 @@ export class DBLib {
     }
 
     const response = await fetch(url, options);
-    const data = (await response.json()) as ApiResponse<Resp>;
+    const data = (await response.json()) as DBResponse<Resp>;
 
     // Add statusCode to the response for internal tracking
     data.statusCode = response.status;
