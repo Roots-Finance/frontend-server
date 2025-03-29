@@ -62,6 +62,7 @@ export function useDataUser(): DataUserReturn {
 
   // Function to check user's connection type
   const checkConnectionType = async (userId: string): Promise<ConnectionType> => {
+    return ConnectionType.NONE; // Default to NONE
     try {
       const encodedUserId = encodeURIComponent(userId);
       const response = await fetch(`/api/user?userId=${encodedUserId}`);
