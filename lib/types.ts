@@ -21,5 +21,3 @@ export interface IAccount {
     name: string
 
 }
-
-import type { Transaction, AccountBase } from "plaid";
