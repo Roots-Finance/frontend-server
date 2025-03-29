@@ -1,5 +1,5 @@
 // app/api/budget/minimize/route.ts
-import { ExtraTransaction } from "@/hooks/usePlaidUser";
+import { ITransaction } from "@/lib/types"
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
   try {
     // Get the chart data and config
     const requestData: { 
-      chartData: ExtraTransaction[],
+      chartData: ITransaction[],
       chartConfig?: { [key: string]: number }
     } = await request.json();
     
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     let minimizedTotal = 0;
     const processedData = chartData.map((transaction) => {
       // Get the category of this transaction
-      const category = transaction.personal_finance_category?.primary;
+      const category = transaction.category;
       
       // Determine if this category has an adjustment
       const adjustmentFactor = category && category in chartConfig 
