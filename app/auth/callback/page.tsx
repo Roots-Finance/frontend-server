@@ -1,7 +1,7 @@
 "use client";
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useDataUser } from '@/hooks/useDataUser';
+import { useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { useDataUser } from "@/hooks/useDataUser";
 
 // Simple loading state component
 const LoadingState = () => (
@@ -10,37 +10,65 @@ const LoadingState = () => (
   </div>
 );
 
-// Auth callback component
 export default function AuthCallback() {
   const router = useRouter();
   const { user, error, isLoading } = useDataUser();
-  
-  useEffect(() => {
-    // Skip if still loading auth data
-    if (isLoading) return;
-    
-    // If there's an error, handle it
-    if (error) {
-      console.error('Auth error:', error);
-      router.push('/auth/login');
-      return;
-    }
-    
-    // If authenticated, check for user data
-    if (user) {
-      if (user.data) {
-        // User already has data, redirect to dashboard
-        router.push('/dashboard');
-      } else {
-        // User needs to configure their account
-        router.push('/user/config');
+  // Ref to ensure the effect only runs once
+  const hasHandled = useRef(false);
+
+  // Function to create the account in our database if it doesn't exist
+  const createAccount = async () => {
+    if (!user) return;
+    try {
+      const response = await fetch("/api/user/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          oauth_sub: user.sub,
+          first_name: user.nickname || user.name || "TEST",
+          last_name: user.family_name || "TEST",
+        }),
+      });
+      if (!response.ok) {
+        throw new Error("Failed to create account");
       }
-    } else {
-      // Not authenticated, redirect to login
-      router.push('/auth/login');
+
+      hasHandled.current = true;
+      // Refresh user data to include the new account info
+      await user.refreshData();
+    } catch (err) {
+      console.error("Error creating account:", err);
     }
+  };
+
+  useEffect(() => {
+    const processAuth = async () => {
+      // Ensure this effect only runs once after redirection
+      if (hasHandled.current) return;
+      if (isLoading) return;
+      if (error) {
+        console.error("Auth error:", error);
+        router.push("/auth/login");
+        hasHandled.current = true;
+        return;
+      }
+      if (user) {
+        if (!user.data) {
+          // Create account if user has no data
+          await createAccount();
+        }
+        router.push("/user/config");
+      } else {
+        hasHandled.current = true;
+        router.push("/auth/login");
+
+      }
+    };
+
+    processAuth();
   }, [isLoading, user, error, router]);
-  
-  // Show loading state until redirected
+
   return <LoadingState />;
 }

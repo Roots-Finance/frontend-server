@@ -32,7 +32,7 @@ export function TransactionChart({
   lines = [],
   children,
 }: TransactionChartProps) {
-  
+
 
   // Zoom and pan state
   const [zoomLevel, setZoomLevel] = useState(1);
@@ -137,20 +137,13 @@ export function TransactionChart({
 
   // Update visible data when zoom or data changes
   useEffect(() => {
-    const currentInputs = { 
+    // Always update visible data when the data prop changes
+    setVisibleData(calculateVisibleData(data, zoomLevel, zoomCenter));
+    prevCalcInputsRef.current = { 
       dataLength: data.length, 
       zoomLevel, 
       zoomCenter 
     };
-    
-    // Only recalculate if inputs have changed
-    if (prevCalcInputsRef.current.dataLength !== currentInputs.dataLength ||
-        prevCalcInputsRef.current.zoomLevel !== currentInputs.zoomLevel ||
-        prevCalcInputsRef.current.zoomCenter !== currentInputs.zoomCenter) {
-      
-      setVisibleData(calculateVisibleData(data, zoomLevel, zoomCenter));
-      prevCalcInputsRef.current = currentInputs;
-    }
   }, [data, zoomLevel, zoomCenter]);
 
   // Event handlers for panning
@@ -204,7 +197,7 @@ export function TransactionChart({
         </div>
         {payload[0].payload.name && (
           <span className={`mt-2 text-sm ${getTransactionColor(payload[0].payload)} px-1 rounded-sm`}>
-            {payload[0].payload.name} (${(-payload[0].payload.amount || 0).toFixed(2)})
+            {payload[0].payload.name} {payload[0].payload.isCredit ? '' : '-'}${(payload[0].payload.amount || 0).toFixed(2)}
           </span>
         )}
       </div>

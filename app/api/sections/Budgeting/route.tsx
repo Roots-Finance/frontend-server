@@ -1,5 +1,5 @@
+import { ITransaction } from "@/lib/types";
 import { NextRequest, NextResponse } from "next/server";
-import { ExtraTransaction } from "@/hooks/usePlaidUser";
 
 
 /**
@@ -9,70 +9,26 @@ import { ExtraTransaction } from "@/hooks/usePlaidUser";
  * on what to spend, and what not to spend.
  */
 
-// Helper function to determine if a transaction is discretionary
-function isDiscretionary(transaction: ExtraTransaction): boolean {
-  // Plaid's categories that are typically discretionary
-  const discretionaryCategories = [
-    "Food and Drink", 
-    "Entertainment",
-    "Shopping",
-    "Recreation",
-    "Travel",
-    "Personal Care",
-    "Subscription"
-  ];
-  
-  // Check if primary category (first in array) is discretionary
-  if (transaction.category && transaction.category.length > 0) {
-    return discretionaryCategories.some(cat => 
-      transaction.category![0]?.toLowerCase().includes(cat.toLowerCase())
-    );
-  }
-  
-  return false;
+function isDiscretionary(transaction: ITransaction) {
+  // OFFLOAD TO AI.
 }
 
-// Helper function to determine if a transaction is savings
-function isSavings(transaction: ExtraTransaction): boolean {
-  // Plaid's categories that are typically savings
-  const savingsCategories = [
-    "Transfer", 
-    "Deposit"
-  ];
-  
-  // Check for transfers to savings accounts
-  if (transaction.amount < 0 && transaction.category) {
-    return savingsCategories.some(cat => 
-      transaction.category!.some(c => c.toLowerCase().includes(cat.toLowerCase()))
-    );
-  }
-  
-  return false;
+function isSavings(transaction: ITransaction) {
+  // OFFLOAD TO AI.
 }
 
 // This would typically be fetched from a database
-const getBudgetingSectionContent = (transactions: ExtraTransaction[]) => {
+const getBudgetingSectionContent = (transactions: ITransaction[]) => {
   // Calculate total expenses (negative amounts are expenses in Plaid)
-  const expenses = transactions.filter(t => t.amount > 0); // In Plaid, positive amounts are debits (expenses)
+  const expenses = transactions.filter(t => t.isCredit === false); // In Plaid, positive amounts are debits (expenses)
   const totalExpenses = expenses.reduce((sum, t) => sum + t.amount, 0);
-  
-  console.log(transactions)
+
   // Calculate discretionary expenses
   const discretionaryExpenses = expenses
     .filter(t => isDiscretionary(t))
     .reduce((sum, t) => sum + t.amount, 0);
   
-  // Calculate current savings and potential savings
-  const savingsTransactions = transactions.filter(t => isSavings(t) && t.amount < 0); // Negative amounts are credits
-  const currentSavings = Math.abs(savingsTransactions.reduce((sum, t) => sum + t.amount, 0));
-  
-  // Default to 10% of total expenses if no savings found
-  const effectiveSavings = currentSavings
-  
-  // Assume 50% of discretionary could be saved
-  const potentialSavings = effectiveSavings + (discretionaryExpenses * 0.5);
-  const percentIncrease = Math.round(((potentialSavings - effectiveSavings) / effectiveSavings) * 100);
-  
+
   // Identify top discretionary categories
   const discretionaryByCategory: Record<string, number> = {};
   
@@ -100,11 +56,6 @@ const getBudgetingSectionContent = (transactions: ExtraTransaction[]) => {
   return {
     title: "Budgeting Fundamentals",
     description: "Learn how to create and maintain a personal budget that helps you achieve your financial goals.",
-    savings: {
-      current: Math.round(effectiveSavings),
-      potential: Math.round(potentialSavings),
-      percentIncrease: percentIncrease > 0 ? percentIncrease : 10 // Default to 10% if calculation is off
-    },
     lessons: [
       {
         id: "cut-discretionary",

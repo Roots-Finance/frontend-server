@@ -3,8 +3,7 @@ import { ITransaction } from "@/lib/types";
 import { BookOpen, ExternalLink, FileText } from "lucide-react";
 
 export const getTransactionColor = (trans: ITransaction) => {
-  console.log(trans)
-  if (trans.amount < 0) {
+  if (trans.isCredit) {
     return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300";
   } else {
     return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300";

@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     
     const { chartData, chartConfig = {} } = requestData;
     
-    if (!chartData || chartData.length === 0) {
+    if (!chartData) {
       return NextResponse.json({ error: "Missing chartData" }, { status: 400 });
     }
 
@@ -35,18 +35,16 @@ export async function POST(request: NextRequest) {
       
       if (
         category && 
-        adjustmentFactor < 1 &&
+        adjustmentFactor < 1
         // isDiscretionaryCategory(category) && 
-        transaction.amount > 0
+        // transaction.isCredit === false
       ) {
         // Adjust the amount based on the category's adjustment factor
         transactionImpact = transaction.amount * adjustmentFactor;
       }
       
-
-      console.log(transactionImpact)
       // Update running total
-      minimizedTotal -= transactionImpact;
+      minimizedTotal += transaction.isCredit ? transactionImpact : -transactionImpact;
       
       // Return transaction with updated minimizedTotal
       return {
