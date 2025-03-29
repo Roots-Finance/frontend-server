@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json([], { status: 200 });
     }
     
-    let allTransactions: ITransaction[] = [];
+    const allTransactions: ITransaction[] = [];
     
     // Loop through each account and get its transactions
     for (const account of accounts) {
@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
           pending: transaction.pending || false,
           overallTotal: 0, // will be calculated below
           isCredit: transaction.type === "CREDIT",
+          raw: transaction
         }));
         allTransactions.push(...formattedTransactions);
       }

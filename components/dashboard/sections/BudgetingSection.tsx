@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Clock, ExternalLink, BookOpen, FileText, DollarSign, RefreshCw } from "lucide-react";
+import { ArrowLeft, Clock, ExternalLink, BookOpen, FileText, DollarSign, RefreshCw, Save } from "lucide-react";
 import { TransactionChart, ChartLine } from "@/components/dashboard/charts/TransactionChart";
 import { getResourceColor, getResourceIcon } from "./utils";
 import { LessonViewer } from "@/components/dashboard/sections/LessonViewer";
@@ -13,6 +13,7 @@ import { Slider } from "@/components/ui/slider";
 import { ITransaction } from "@/lib/types";
 import { minimizeBudgetProjection } from "@/lib/sections/budget";
 import { ResourceType } from "../types";
+import { Toaster } from "@/components/ui/sonner";
 
 export interface LessonContent {
   title: string;
@@ -44,10 +45,104 @@ export interface BudgetingSectionData {
   resources: Resource[];
 }
 
+interface BudgetData {
+  [category: string]: number;
+}
+
 interface BudgetingSectionProps {
   user: ExtendedUser | null;
   userLoading: boolean;
   onBack: () => void;
+}
+
+/** A simplified, modularized component for the category sliders. */
+interface CategorySlidersCardProps {
+  uniqueCategories: string[];
+  categorySliders: BudgetData;
+  isSaving: boolean;
+  reasoning?: string;
+  onSliderChange: (category: string, values: number[]) => void;
+  onSaveBudget: () => void;
+  onAISliders: () => void;
+}
+
+function CategorySlidersCard({
+  uniqueCategories,
+  categorySliders,
+  isSaving,
+  reasoning,
+  onSliderChange,
+  onSaveBudget,
+  onAISliders,
+}: CategorySlidersCardProps) {
+  return (
+    <Card className="border shadow-sm">
+      <CardHeader className="flex justify-between items-center">
+        <div>
+          <CardTitle className="text-xl font-bold">Spending Category Adjustments</CardTitle>
+          <CardDescription className="text-sm">
+            Adjust the sliders to see how changes in your spending affect your finances.
+          </CardDescription>
+        </div>
+        <div className="flex gap-2">
+          <Button onClick={onAISliders} variant="outline" size="sm">
+            AI Sliders
+          </Button>
+          <Button 
+            onClick={onSaveBudget} 
+            disabled={isSaving}
+            size="sm"
+            className="bg-primary hover:bg-primary/90"
+          >
+            {isSaving ? (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="mr-2 h-4 w-4" />
+                Save Budget
+              </>
+            )}
+          </Button>
+        </div>
+      </CardHeader>
+      {/* Display AI reasoning if available */}
+      {reasoning && (
+        <div className="mx-4 my-2 p-3 bg-gray-100 rounded-md text-sm italic">
+          {reasoning}
+        </div>
+      )}
+      <CardContent className="space-y-6">
+        {uniqueCategories.map((category) => (
+          <div key={category} className="space-y-2">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center space-x-2">
+                <DollarSign className="h-4 w-4 text-primary" />
+                <span className="font-medium">{category}</span>
+              </div>
+              <span className="text-sm font-medium">{categorySliders[category] || 100}%</span>
+            </div>
+            <Slider
+              defaultValue={[categorySliders[category] || 100]}
+              value={[categorySliders[category] || 100]}
+              max={100}
+              min={0}
+              step={1}
+              onValueChange={(values) => onSliderChange(category, values)}
+              className="w-full"
+            />
+            <p className="text-xs text-muted-foreground">
+              {categorySliders[category] === 100
+                ? "No reduction in spending"
+                : `Reduced to ${categorySliders[category]}% of current spending`}
+            </p>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
 }
 
 export function BudgetingSection({ user, userLoading, onBack }: BudgetingSectionProps) {
@@ -57,72 +152,83 @@ export function BudgetingSection({ user, userLoading, onBack }: BudgetingSection
   const [chartData, setChartData] = useState<ITransaction[]>([]);
   const [sectionData, setSectionData] = useState<BudgetingSectionData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
   const [completedLessons, setCompletedLessons] = useState<string[]>([]);
 
-  // State for category sliders
-  const [categorySliders, setCategorySliders] = useState<{ [key: string]: number }>({});
+  const [categorySliders, setCategorySliders] = useState<BudgetData>({});
   const [uniqueCategories, setUniqueCategories] = useState<string[]>([]);
+  const [userBudget, setUserBudget] = useState<BudgetData | null>(null);
+  const [aiReasoning, setAiReasoning] = useState<string>("");
 
-  // Extract unique categories from transactions, excluding categories where all transactions are credit
+  // Initial load for default categories; fallback to all 100 if no data.
+  useEffect(() => {
+    const loadDefaultCategories = async () => {
+      if (!user?.sub) return;
+      try {
+        const response = await fetch(`/api/sections/Budget/categories?userId=${encodeURIComponent(user.sub)}`);
+        if (!response.ok) throw new Error(`Failed to fetch default categories: ${response.status}`);
+        const data = await response.json() as BudgetData | null;
+        const defaultBudget = data || {};
+        setUserBudget(defaultBudget);
+        setCategorySliders(defaultBudget);
+      } catch (err) {
+        console.error("Error loading default categories:", err);
+        setUserBudget({});
+        setCategorySliders({});
+      }
+    };
+    loadDefaultCategories();
+  }, [user?.sub]);
+
+  // Update unique categories from user's transactions and initialize missing sliders to 100
   useEffect(() => {
     if (user?.data?.transactions) {
-      const allCategories = user.data.transactions
-        .map(tx => tx.category)
-        .filter((cat): cat is string => !!cat);
-      // Only include a category if there is at least one non-credit transaction
-      const filteredCategories = Array.from(new Set(allCategories)).filter((category) =>
+      const categories = Array.from(
+        new Set(user.data.transactions.map(tx => tx.category).filter(Boolean))
+      ).filter(category =>
         user.data!.transactions.some(tx => tx.category === category && !tx.isCredit)
       );
-      setUniqueCategories(filteredCategories);
-
-      // Initialize slider values for new categories if not already set
-      const initialSliders: { [key: string]: number } = {};
-      filteredCategories.forEach(category => {
-        if (!(category in categorySliders)) {
-          initialSliders[category] = 100;
-        }
-      });
-      if (Object.keys(initialSliders).length > 0) {
-        setCategorySliders(prev => ({ ...prev, ...initialSliders }));
+      for (const category of categories) {
+        console.log(category, user.data!.transactions.filter(tx => tx.category === category && !tx.isCredit));
       }
+      
+      setUniqueCategories(categories);
+      setCategorySliders(prev => {
+        const updated = { ...prev };
+        categories.forEach(category => {
+          if (updated[category] == null) updated[category] = 100;
+        });
+        return updated;
+      });
     }
-  }, [user?.data?.transactions, categorySliders]);
+  }, [user?.data?.transactions]);
 
-  // Fetch chart data and section content on initial load
+  // Fetch chart data and section content
   useEffect(() => {
     const fetchBudgetData = async () => {
       if (!user || !user.data || userLoading || isLoading) return;
-
-      const currentTxIds = user.data.transactions
-        .map(t => t.transaction_id)
-        .sort()
-        .join(",");
+      const currentTxIds = user.data.transactions.map(t => t.transaction_id).sort().join(",");
       if (
         transactionIdsRef.current.length > 0 &&
         currentTxIds === transactionIdsRef.current.join(",") &&
-        chartData.length > 0 &&
-        sectionData !== null
+        chartData.length &&
+        sectionData
       ) {
         return;
       }
       transactionIdsRef.current = currentTxIds.split(",");
-
       try {
         setIsLoading(true);
-        // Use the client-side function to process chart data with no adjustments initially
         const projectionData = minimizeBudgetProjection(user.data.transactions, {});
         setChartData(projectionData);
-
-        const contentResponse = await fetch("/api/sections/Budgeting", {
+        const contentResponse = await fetch("/api/sections/Budget", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ chartData: projectionData }),
         });
-        if (!contentResponse.ok) {
-          throw new Error(`Section content failed: ${contentResponse.status}`);
-        }
+        if (!contentResponse.ok) throw new Error(`Section content failed: ${contentResponse.status}`);
         const contentData = await contentResponse.json();
         setSectionData(contentData);
         dataFetchedRef.current = true;
@@ -137,58 +243,54 @@ export function BudgetingSection({ user, userLoading, onBack }: BudgetingSection
     if (!dataFetchedRef.current) {
       fetchBudgetData();
     }
-  }, [user?.data?.transactions?.length, userLoading, isLoading, chartData.length, sectionData, user]);
+  }, [user, userLoading, isLoading, chartData.length, sectionData]);
 
-  // Automatically update the chart when the slider values change
+  // Update chart automatically when sliders change
   useEffect(() => {
     if (!user?.data?.transactions) return;
     const updatedProjection = minimizeBudgetProjection(user.data.transactions, categorySliders);
     setChartData(updatedProjection);
   }, [categorySliders, user]);
 
-  // Handle lesson completion
-  const handleLessonComplete = (lessonId: string) => {
-    setCompletedLessons(prev => [...prev, lessonId]);
-    setActiveLesson(null);
-  };
-
-  // Update slider value and let the useEffect update the chart automatically
-  const handleSliderChange = (category: string, values: number[]) => {
-    setCategorySliders(prev => ({
-      ...prev,
-      [category]: values[0]
-    }));
-    
-  };
-
-  // Manual refresh to reset data
-  const handleManualRefresh = async () => {
-    if (!user || !user.data) return;
-    setIsLoading(true);
-    setError(null);
+  // AI Sliders: Fetch new slider values (with extra "reasoning") from the ai endpoint.
+  const handleAISliders = async () => {
+    if (!user?.sub) return;
     try {
-      const projectionData = minimizeBudgetProjection(user.data.transactions, {});
-      setChartData(projectionData);
-
-      const contentResponse = await fetch("/api/sections/Budgeting", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chartData: projectionData }),
-      });
-      if (!contentResponse.ok) {
-        throw new Error(`Section content failed: ${contentResponse.status}`);
-      }
-      const contentData = await contentResponse.json();
-      setSectionData(contentData);
+      const response = await fetch(`/api/sections/Budget/ai-categories?userId=${encodeURIComponent(user.sub)}`);
+      if (!response.ok) throw new Error("Failed to fetch AI categories");
+      const aiData = await response.json() as BudgetData & { reasoning?: string };
+      setUserBudget(aiData);
+      setCategorySliders(aiData);
+      setAiReasoning(aiData.reasoning || "");
     } catch (err) {
-      console.error("Error refreshing budget data:", err);
-      setError(err instanceof Error ? err.message : "An unknown error occurred");
-    } finally {
-      setIsLoading(false);
+      console.error("Error updating AI sliders:", err);
     }
   };
 
-  // Configure chart line
+  // Save current slider values
+  const handleSaveBudget = async () => {
+    if (!user?.sub) return;
+    try {
+      setIsSaving(true);
+      const response = await fetch(`/api/sections/Budget/set-categories`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.sub, budget: categorySliders }),
+      });
+      if (!response.ok) throw new Error(`Failed to save budget: ${response.status}`);
+      const updatedBudget = await response.json() as BudgetData;
+      setUserBudget(updatedBudget);
+    } catch (err) {
+      console.error("Error saving budget:", err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSliderChange = (category: string, values: number[]) => {
+    setCategorySliders(prev => ({ ...prev, [category]: values[0] }));
+  };
+
   const lines: ChartLine[] = [
     {
       dataKey: "minimizedTotal",
@@ -238,7 +340,7 @@ export function BudgetingSection({ user, userLoading, onBack }: BudgetingSection
           </CardHeader>
           <CardContent>
             <p className="mb-4 text-muted-foreground">{error}</p>
-            <Button onClick={handleManualRefresh} className="bg-primary hover:bg-primary/90">
+            <Button onClick={() => window.location.reload()} className="bg-primary hover:bg-primary/90">
               Try Again
             </Button>
           </CardContent>
@@ -246,7 +348,6 @@ export function BudgetingSection({ user, userLoading, onBack }: BudgetingSection
       </div>
     );
   }
-
 
   return (
     <div className="space-y-6">
@@ -256,7 +357,10 @@ export function BudgetingSection({ user, userLoading, onBack }: BudgetingSection
           chartData={chartData}
           lines={lines}
           onClose={() => setActiveLesson(null)}
-          onComplete={handleLessonComplete}
+          onComplete={(lessonId) => {
+            setCompletedLessons(prev => [...prev, lessonId]);
+            setActiveLesson(null);
+          }}
         />
       )}
 
@@ -268,7 +372,7 @@ export function BudgetingSection({ user, userLoading, onBack }: BudgetingSection
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back
             </Button>
-            <Button variant="outline" size="sm" onClick={handleManualRefresh}>
+            <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
               Reset Data
             </Button>
           </div>
@@ -280,44 +384,16 @@ export function BudgetingSection({ user, userLoading, onBack }: BudgetingSection
         </CardContent>
       </Card>
 
-      {/* Category Sliders Card */}
       {uniqueCategories.length > 0 && (
-        <Card className="border shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="text-xl font-bold">Spending Category Adjustments</CardTitle>
-              <CardDescription className="text-sm">
-                Adjust the sliders to see how changes in your spending affect your finances.
-              </CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {uniqueCategories.map((category) => (
-              <div key={category} className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center space-x-2">
-                    <DollarSign className="h-4 w-4 text-primary" />
-                    <span className="font-medium">{category}</span>
-                  </div>
-                  <span className="text-sm font-medium">{categorySliders[category] || 100}%</span>
-                </div>
-                <Slider
-                  defaultValue={[categorySliders[category] || 100]}
-                  max={100}
-                  min={0}
-                  step={1}
-                  onValueChange={(values) => handleSliderChange(category, values)}
-                  className="w-full"
-                />
-                <p className="text-xs text-muted-foreground">
-                  {categorySliders[category] === 100
-                    ? "No reduction in spending"
-                    : `Reduced to ${categorySliders[category]}% of current spending`}
-                </p>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+        <CategorySlidersCard 
+          uniqueCategories={uniqueCategories}
+          categorySliders={categorySliders}
+          isSaving={isSaving}
+          reasoning={aiReasoning}
+          onSliderChange={handleSliderChange}
+          onSaveBudget={handleSaveBudget}
+          onAISliders={handleAISliders}
+        />
       )}
 
       {/* Budget Content Card */}
@@ -332,7 +408,6 @@ export function BudgetingSection({ user, userLoading, onBack }: BudgetingSection
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-8">
-          {/* Lessons Section */}
           <div>
             <h3 className="text-xl font-medium mb-4 flex items-center">
               <BookOpen className="mr-2 h-5 w-5 text-primary" />
@@ -373,8 +448,6 @@ export function BudgetingSection({ user, userLoading, onBack }: BudgetingSection
               })}
             </div>
           </div>
-
-          {/* Resources Section */}
           {sectionData?.resources?.length ? (
             <div>
               <h3 className="text-xl font-medium mb-4 flex items-center">
@@ -387,7 +460,7 @@ export function BudgetingSection({ user, userLoading, onBack }: BudgetingSection
                     <CardContent className="p-4">
                       <div className="flex justify-between items-start mb-2">
                         <h4 className="font-medium text-base">{resource.title}</h4>
-                        <Badge className={`ml-2 ${getResourceColor(resource.type )}`}>
+                        <Badge className={`ml-2 ${getResourceColor(resource.type)}`}>
                           <span className="flex items-center">
                             {getResourceIcon(resource.type)}
                             <span className="ml-1">{resource.type}</span>

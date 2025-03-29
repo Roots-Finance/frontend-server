@@ -17,7 +17,6 @@ export interface NessiAccount {
   type: string;
 }
 
-
 export interface NessiTransaction {
   // Define transaction properties based on your API
   id: string;
@@ -28,14 +27,16 @@ export interface NessiTransaction {
   [key: string]: any;
 }
 
-
-
 export interface UpdateUserRequest {
   oauth_sub: string;
   plaid_key?: string;
   knot_key?: string;
   first_name?: string;
   last_name?: string;
+}
+
+export interface BudgetData {
+  [category: string]: number;
 }
 
 export class DBLib {
@@ -176,6 +177,69 @@ export class DBLib {
     });
 
     const data = (await response.json()) as DBResponse<NessiTransaction[]>;
+
+    return data.data;
+  }
+
+  /**
+   * Gets user budget by oauth_sub
+   * @param oauthSub OAuth subject identifier
+   * @returns Promise with API response containing user budget data
+   */
+  async getUserBudget(oauthSub: string): Promise<BudgetData | null> {
+    if (!this.baseUrl) {
+      throw new Error("Backend URL is not configured");
+    }
+
+    const response = await fetch(`${this.baseUrl}/api/user/${encodeURIComponent(oauthSub)}/budget`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    const data = (await response.json()) as DBResponse<BudgetData>;
+
+    return data.data;
+  }
+
+  /**
+   * Updates user budget
+   * @param oauthSub OAuth subject identifier
+   * @param budgetData Budget data to update
+   * @returns Promise with API response containing updated budget data
+   */
+  async updateUserBudget(oauthSub: string, budgetData: BudgetData): Promise<BudgetData> {
+    if (!this.baseUrl) {
+      throw new Error("Backend URL is not configured");
+    }
+
+    const response = await fetch(`${this.baseUrl}/api/user/${encodeURIComponent(oauthSub)}/budget`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(budgetData),
+    });
+
+    const data = (await response.json()) as DBResponse<BudgetData>;
+
+    return data.data;
+  }
+
+  async getAiUserBudgetInfo(oauthSub: string): Promise<BudgetData & {reasoning: string}> {
+    if (!this.baseUrl) {
+      throw new Error("Backend URL is not configured");
+    }
+
+    const response = await fetch(`${this.baseUrl}/api/user/${encodeURIComponent(oauthSub)}/ai-budget`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    const data = (await response.json()) as DBResponse<BudgetData & {reasoning: string}>;
 
     return data.data;
   }
