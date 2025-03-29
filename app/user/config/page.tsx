@@ -191,7 +191,9 @@ const usePlaidLinkSetup = ({ user, onSuccess, onError }: any) => {
       setError(null);
       
       // Check if we need to reconnect an existing account
-      const statusResponse = await fetch(`/api/plaid/status?userId=${encodeURIComponent(user.sub)}`);
+      const statusResponse = await fetch(`/api/plaid/status?userId=${encodeURIComponent(user.sub)}`, {
+        method: 'GET',
+      });
       if (!statusResponse.ok) {
         throw new Error(`Error checking Plaid status: ${statusResponse.status}`);
       }

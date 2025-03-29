@@ -62,7 +62,6 @@ export function useDataUser(): DataUserReturn {
 
   // Function to check user's connection type
   const checkConnectionType = async (userId: string): Promise<ConnectionType> => {
-    return ConnectionType.NONE; // Default to NONE
     try {
       const encodedUserId = encodeURIComponent(userId);
       const response = await fetch(`/api/user?userId=${encodedUserId}`);
@@ -97,11 +96,10 @@ export function useDataUser(): DataUserReturn {
         setDataLoading(false);
         return;
       }
-
-      // Continue with Plaid connection flow
+// Continue with Plaid connection flow
       // 1. Get Plaid status to check if connected and get item ID
-      const encodedUserId = encodeURIComponent(auth0.user.sub);
-      const statusResponse = await fetch(`/api/plaid/status?userId=${encodedUserId}`);
+      const statusResponse = await fetch(`/api/plaid/status?userId=${encodeURIComponent(auth0.user.sub)}`);
+      console.log(statusResponse)
       
       if (!statusResponse.ok) {
         throw new Error(`Failed to get Plaid status: ${statusResponse.status}`);
@@ -178,7 +176,7 @@ export function useDataUser(): DataUserReturn {
       setDataError(error instanceof Error ? error : new Error("Unknown error"));
     } finally {
       setDataLoading(false);
-    }
+    }{}
   };
 
   // Generate a random mask (2-4 digits) when one is not provided
@@ -202,10 +200,12 @@ export function useDataUser(): DataUserReturn {
   };
 
   const refreshData = async (): Promise<void> => {
+    console.log("Refreshing data...");
     if (!auth0.user?.sub) return;
     
     // Check connection type first
     const userConnectionType = await checkConnectionType(auth0.user.sub);
+    console.log(userConnectionType, auth0.user?.sub);
     setConnectionType(userConnectionType);
     
     if (userConnectionType === ConnectionType.PLAID) {
