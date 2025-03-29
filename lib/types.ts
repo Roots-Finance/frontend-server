@@ -11,4 +11,15 @@ export interface ITransaction {
 
 }
 
-import type { Transaction } from "plaid";
+export interface IAccount {
+    account_id: string
+    balance: number
+
+    // The last 2-4 alphanumeric characters of either the account’s displayed mask 
+    // or the account’s official account number. Note that the mask may be non-unique between an Item’s accounts.
+    mask: string // for you, just return random digits.
+    name: string
+
+}
+
+import type { Transaction, AccountBase } from "plaid";
