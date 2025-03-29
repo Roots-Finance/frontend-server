@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, Sector } from 'recharts';
 import { Separator } from '@/components/ui/separator';
+import { Loader2 } from 'lucide-react';
 
-
+// Portfolio Pie Chart Component
 export const PortfolioPieChart = ({ data, activeIndex, setActiveIndex }) => {
-  // transform data
+  // Transform the data for the pie chart
   const chartData = Object.entries(data).map(([name, value]) => ({
     name,
     value
@@ -62,7 +63,7 @@ export const PortfolioPieChart = ({ data, activeIndex, setActiveIndex }) => {
           startAngle={startAngle}
           endAngle={endAngle}
           fill={"rgba(0,0,0,0.15)"}
-          className="transition-all duration-600"
+          className="transition-all duration-300"
         />
         
         {/* Main expanded sector */}
@@ -185,29 +186,43 @@ export const PortfolioPieChart = ({ data, activeIndex, setActiveIndex }) => {
 };
 
 // Portfolio Control Buttons Component
-const PortfolioControls = ({ onDiversify, onConsolidate }) => {
+const PortfolioControls = ({ onDiversify, onConsolidate, isLoading }) => {
   return (
     <div className="flex flex-col h-full justify-center space-y-6 p-4">
       <Button 
         onClick={onDiversify} 
         className="w-full"
         variant="outline"
+        disabled={isLoading}
       >
-        Diversify
+        {isLoading ? (
+          <>
+            Diversify
+          </>
+        ) : (
+          'Diversify'
+        )}
       </Button>
       <Button 
         onClick={onConsolidate} 
         className="w-full"
         variant="outline"
+        disabled={isLoading}
       >
-        Consolidate
+        {isLoading ? (
+          <>
+            Consolidate
+          </>
+        ) : (
+          'Consolidate'
+        )}
       </Button>
     </div>
   );
 };
 
 // Main Portfolio Container Component
-export const PortfolioAllocationManager = () => {
+const PortfolioAllocationManager = () => {
   // Initial dummy data
   const [portfolioData, setPortfolioData] = useState({
     "US Stocks": 45,
@@ -218,10 +233,25 @@ export const PortfolioAllocationManager = () => {
   });
   
   const [activeIndex, setActiveIndex] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingAction, setLoadingAction] = useState('');
+
+  // Simulate an API call with a delay
+  const simulateApiCall = (data, delay = 1500) => {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve(data);
+      }, delay);
+    });
+  };
 
   // Handler for the Diversify button
-  const handleDiversify = () => {
-    setPortfolioData({
+  const handleDiversify = async () => {
+    setIsLoading(true);
+    setLoadingAction('diversify');
+    
+    // Simulate API call to backend
+    const newData = await simulateApiCall({
       "US Stocks": 30,
       "International Stocks": 20,
       "Bonds": 15,
@@ -230,16 +260,28 @@ export const PortfolioAllocationManager = () => {
       "Commodities": 5,
       "Cryptocurrency": 5
     });
+    
+    setPortfolioData(newData);
+    setIsLoading(false);
+    setLoadingAction('');
   };
 
-  // Handler for the Consolidate button -- will be real func eventually
-  const handleConsolidate = () => {
-    setPortfolioData({
+  // Handler for the Consolidate button
+  const handleConsolidate = async () => {
+    setIsLoading(true);
+    setLoadingAction('consolidate');
+    
+    // Simulate API call to backend
+    const newData = await simulateApiCall({
       "US Stocks": 60,
       "International Stocks": 20,
       "Bonds": 15,
       "Cash": 5
     });
+    
+    setPortfolioData(newData);
+    setIsLoading(false);
+    setLoadingAction('');
   };
 
   return (
@@ -253,7 +295,17 @@ export const PortfolioAllocationManager = () => {
       <CardContent>
         <div className="flex flex-col md:flex-row">
           {/* Left side: Portfolio Pie Chart */}
-          <div className="flex-1">
+          <div className="flex-1 relative">
+            {isLoading && (
+              <div className="absolute inset-0 bg-card/70 backdrop-blur-sm flex items-center justify-center z-10 rounded-md">
+                <div className="flex flex-col items-center bg-card p-4 rounded-lg shadow-lg border">
+                  <Loader2 className="h-8 w-8 animate-spin mb-2 text-primary" />
+                  <p className="text-sm font-medium">
+                    {loadingAction === 'diversify' ? 'Diversifying your portfolio...' : 'Consolidating your portfolio...'}
+                  </p>
+                </div>
+              </div>
+            )}
             <PortfolioPieChart 
               data={portfolioData} 
               activeIndex={activeIndex}
@@ -262,16 +314,17 @@ export const PortfolioAllocationManager = () => {
           </div>
           
           {/* Divider */}
-          <div className="mx-4 my-6">
+          <div className="mx-4 my-6 md:my-0">
             <Separator orientation="vertical" className="h-[200px]" />
           </div>
           
           {/* Right side: Control Buttons */}
-          <div className="w-2/5">
-            <h1 className="text-2xl font-bold mb-6">Investment Wizard</h1>
+          <div className="w-2/5 text-center">
+            <h1 className="text-2xl font-bold">Investment Wizard</h1>
             <PortfolioControls 
               onDiversify={handleDiversify} 
-              onConsolidate={handleConsolidate} 
+              onConsolidate={handleConsolidate}
+              isLoading={isLoading}
             />
           </div>
         </div>
