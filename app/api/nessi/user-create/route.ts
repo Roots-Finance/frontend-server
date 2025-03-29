@@ -1,6 +1,7 @@
 // app/api/user/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import apiService, { UserData } from '@/lib/nessi';
+import apiService from '@/lib/db';
+import { DBUserData } from '@/lib/types';
 
 /**
  * API route for user creation/update
@@ -9,7 +10,7 @@ import apiService, { UserData } from '@/lib/nessi';
 export async function POST(request: NextRequest) {
   try {
     // Parse the request body
-    const userData: UserData = await request.json();
+    const userData: DBUserData = await request.json();
     
     // Validate required fields
     if (!userData.oauth_sub || !userData.first_name || !userData.last_name) {

@@ -32,6 +32,7 @@ export function TransactionChart({
   lines = [],
   children,
 }: TransactionChartProps) {
+  
 
   // Zoom and pan state
   const [zoomLevel, setZoomLevel] = useState(1);

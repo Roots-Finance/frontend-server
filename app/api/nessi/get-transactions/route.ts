@@ -1,51 +1,59 @@
-// app/api/user/[oauthSub]/route.ts
+// app/api/nessi/get-transactions/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import apiService from '@/lib/nessi';
+import apiService from '@/lib/db';
+import { ITransaction } from '@/lib/types';
 
 /**
- * API route for getting user data by oauth_sub
- * GET /api/user/:oauthSub
+ * API route for getting transactions for a specific account
+ * GET /api/nessi/get-transactions?accountId=xyz
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { oauthSub: string } }
-) {
+export async function GET(request: NextRequest) {
   try {
-    // Validate the oauth_sub parameter
-    const { oauthSub } = params;
+    // Get accountId from query params
+    const searchParams = request.nextUrl.searchParams;
+    const accountId = searchParams.get('accountId');
     
-    if (!oauthSub) {
-      return NextResponse.json({
-        message: 'Missing required parameter: oauthSub',
-      }, { status: 400 });
+    if (!accountId) {
+      return NextResponse.json([], { status: 400 });
     }
     
-    // Use the apiService singleton from nessi.ts to make the request
-    const response = await apiService.getUserByOAuthSub(oauthSub);
+    // Use the apiService singleton to get account transactions
+    const transactions = await apiService.getAccountTransactions(accountId);
     
-    // Check if the request was successful
-    if (response.error === 1 || response.status === 0) {
-      // Return just the error message with appropriate status code
-      return NextResponse.json({
-        message: response.message || 'User not found or an error occurred',
-      }, { status: response.statusCode || 404 });
+    if (!transactions || transactions.length === 0) {
+      return NextResponse.json([], { status: 200 });
     }
     
-    // If we have a user in the response, return just the user object
-    if (response.user) {
-      return NextResponse.json(response.user, { status: 200 });
+    // Map the transactions to the ITransaction format if needed
+    const formattedTransactions: ITransaction[] = transactions.map(transaction => ({
+      amount: transaction.amount,
+      account_id: accountId,
+      transaction_id: transaction.id,
+      date: transaction.date,
+      merchant_name: transaction.merchant_name || transaction.description || "UNKNOWN",
+      category: transaction.category || "UNKNOWN",
+      name: transaction.description || transaction.merchant_name || "UNKNOWN",
+      pending: transaction.pending || false,
+      overallTotal: 0 // This will be calculated later
+    }));
+    
+    // Sort transactions by date (newest first)
+    formattedTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    
+    // Calculate overall balance
+    let overallTotal = 0;
+    for (const transaction of formattedTransactions) {
+      // Calculate overall balance
+      overallTotal -= transaction.amount;
+      transaction.overallTotal = overallTotal;
     }
     
-    // Filter out status, error, and statusCode fields
-    const { status, error, statusCode, ...rest } = response;
-    return NextResponse.json(rest, { status: 200 });
+    return NextResponse.json(formattedTransactions, { status: 200 });
     
   } catch (error) {
-    console.error('Error in get user API route:', error);
+    console.error('Error in get transactions API route:', error);
     
-    // Return a simplified error response
-    return NextResponse.json({
-      message: error instanceof Error ? error.message : 'Unknown error occurred',
-    }, { status: 500 });
+    return NextResponse.json([]
+    , { status: 500 });
   }
 }

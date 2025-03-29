@@ -1,8 +1,8 @@
 import { ResourceType } from "@/components/dashboard/types";
-import { ExtraTransaction } from "@/hooks/useDataUser";
+import { ITransaction } from "@/lib/types";
 import { BookOpen, ExternalLink, FileText } from "lucide-react";
 
-export const getTransactionColor = (trans: ExtraTransaction) => {
+export const getTransactionColor = (trans: ITransaction) => {
   console.log(trans)
   if (trans.amount < 0) {
     return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300";
