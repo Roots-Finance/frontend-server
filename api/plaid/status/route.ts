@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAllUserPlaidTokens, validatePlaidToken } from '@/services/plaidTokenService';
 
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   console.log('API route handler called'); // Add this for debugging
   const searchParams = request.nextUrl.searchParams;
   const userId = searchParams.get('userId');
