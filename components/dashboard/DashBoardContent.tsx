@@ -50,8 +50,7 @@ export function DashboardContent({ selectedSection, onSelectSection }: Dashboard
       </>
     );
   }
-
-  console.log('here', user.data)  
+  
   return (
     <>
       <div className="col-span-4">

@@ -19,5 +19,31 @@ export interface IAccount {
     // or the account’s official account number. Note that the mask may be non-unique between an Item’s accounts.
     mask: string // for you, just return random digits.
     name: string
+}
 
+
+/**
+ * ApiService - Handles API requests to backend
+ */
+export interface DBUserData {
+  oauth_sub: string;
+  first_name: string;
+  last_name: string;
+}
+
+export interface DBUser {
+  first_name: string;
+  last_name: string;
+  plaid_access_token: string | null;
+  knot_access_token: string | null;
+  [key: string]: any;
+}
+
+
+// Define connection types enum
+export enum ConnectionType {
+  KNOT = "KNOT",
+  PLAID = "PLAID",
+  NESSI = "NESSI",
+  NONE = "NONE"
 }

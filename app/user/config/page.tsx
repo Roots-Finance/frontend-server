@@ -1,10 +1,12 @@
 "use client";
+
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { PlaidLinkOnSuccessMetadata, usePlaidLink } from 'react-plaid-link';
+import { usePlaidLink } from 'react-plaid-link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useDataUser, ConnectionType } from '@/hooks/useDataUser';
+import { useDataUser } from '@/hooks/useDataUser';
+import { ConnectionType, IAccount, ITransaction, DBUser, DBUserData } from '@/lib/types';
 
 // Component for showing loading state
 const LoadingState = () => (
@@ -175,40 +177,125 @@ const NessiSetupCard = ({
 // Define view states
 type ViewState = 'LOADING' | 'ERROR' | 'CONNECTION_SELECT' | 'PLAID_SETUP' | 'NESSI_SETUP';
 
-// Hook for managing Plaid link token and status
-const usePlaidLinkSetup = ({ user, onSuccess, onError }: any) => {
-  const [linkToken, setLinkToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [reconnecting, setReconnecting] = useState(false);
-  
-  // Fetch link token when needed
-  const fetchLinkToken = async () => {
-    if (!user?.sub || loading) return;
+// Interface for API responses
+interface ApiResponse<T> {
+  status: 0 | 1;
+  error: 0 | 1;
+  message?: string;
+  user?: T;
+  data?: T;
+}
+
+// Interface for user data extended with connection info
+interface ExtendedUser extends DBUser {
+  connection_type?: ConnectionType;
+  plaid_key?: string | null;
+  knot_key?: string | null;
+  nessi_key?: string | null;
+  plaid_item_id?: string;
+  plaid_key_needs_update?: boolean;
+}
+
+// User Config component
+export default function UserConfig() {
+  const router = useRouter();
+  const { user, error: auth0Error, isLoading: auth0Loading } = useDataUser();
+  const [viewState, setViewState] = useState<ViewState>('LOADING');
+  const [selectedConnectionType, setSelectedConnectionType] = useState<ConnectionType>(ConnectionType.NONE);
+  const [plaidError, setPlaidError] = useState<string | null>(null);
+  const [plaidLinkToken, setPlaidLinkToken] = useState<string | null>(null);
+  const [isReconnecting, setIsReconnecting] = useState(false);
+  const [isPlaidLoading, setIsPlaidLoading] = useState(false);
+  const [userData, setUserData] = useState<ExtendedUser | null>(null);
+
+  // Fetch user data from our API
+  const fetchUserData = async (): Promise<ExtendedUser | null> => {
+    if (!user?.sub) return null;
     
     try {
-      setLoading(true);
-      setError(null);
+      const response = await fetch(`/api/user?userId=${encodeURIComponent(user.sub)}`);
       
-      // Check if we need to reconnect an existing account
-      const statusResponse = await fetch(`/api/plaid/status?userId=${encodeURIComponent(user.sub)}`, {
-        method: 'GET',
-      });
-      if (!statusResponse.ok) {
-        throw new Error(`Error checking Plaid status: ${statusResponse.status}`);
+      if (!response.ok) {
+        // If user doesn't exist yet (404), create the user
+        if (response.status === 404) {
+          console.log('sup')
+          return await createUser();
+        }
+        throw new Error(`Error fetching user data: ${response.status}`);
       }
       
-      const statusData = await statusResponse.json();
-      const needsReconnect = statusData.hasPlaid && !statusData.isValid;
-      setReconnecting(needsReconnect);
+      const data = await response.json() as ApiResponse<ExtendedUser>;
+      const fetchedUserData = data.user || null;
+      setUserData(fetchedUserData);
+      return fetchedUserData;
+    } catch (error) {
+      console.error('Error fetching user:', error);
+      return null;
+    }
+  };
+
+  // Create a new user
+  const createUser = async (): Promise<ExtendedUser | null> => {
+    const name = user?.name || 'TEST'
+    const lastName = user?.family_name || 'TEST'
+    if (!user?.sub || !name) return null;
+    
+    try {
+      const userData: DBUserData = {
+        oauth_sub: user.sub,
+        first_name: name,
+        last_name: lastName
+      };
       
-      // Create link token for new connection or reconnection
+      const response = await fetch('/api/user/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userData),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error creating user: ${response.status}`);
+      }
+      
+      const data = await response.json() as ApiResponse<ExtendedUser>;
+      const createdUserData = data.user || null;
+      setUserData(createdUserData);
+      return createdUserData;
+    } catch (error) {
+      console.error('Error creating user:', error);
+      setViewState('ERROR');
+      return null;
+    }
+  };
+
+  // Fetch Plaid link token
+  const fetchPlaidLinkToken = async () => {
+    if (!user?.sub || isPlaidLoading) return;
+    
+    try {
+      setIsPlaidLoading(true);
+      setPlaidError(null);
+      
+      // First check if we need to reconnect by checking user's connection
+      const userData = await fetchUserData();
+      
+      if (!userData) {
+        throw new Error('User data not available');
+      }
+      
+      // Check if user has Plaid connection that needs to be reconnected
+      const needsReconnect = userData.connection_type === ConnectionType.PLAID && 
+                           (!userData.plaid_key || userData.plaid_key_needs_update);
+      
+      setIsReconnecting(!!needsReconnect);
+      
+      // Create link token
       const response = await fetch('/api/plaid/create-link-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           client_user_id: user.sub,
-          ...(needsReconnect && statusData.itemId ? { itemId: statusData.itemId } : {})
+          ...(needsReconnect && userData.plaid_item_id ? { itemId: userData.plaid_item_id } : {})
         }),
       });
       
@@ -218,24 +305,47 @@ const usePlaidLinkSetup = ({ user, onSuccess, onError }: any) => {
       }
       
       const { link_token } = await response.json();
-      setLinkToken(link_token);
+      setPlaidLinkToken(link_token);
     } catch (error) {
       console.error('Link token error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error creating link token';
-      setError(errorMessage);
-      onError?.(errorMessage);
+      setPlaidError(error instanceof Error ? error.message : 'Unknown error creating link token');
+      setViewState('ERROR');
     } finally {
-      setLoading(false);
+      setIsPlaidLoading(false);
     }
   };
-  
-  // Handle Plaid link success
-  const handlePlaidSuccess = async (public_token: string, metadata: PlaidLinkOnSuccessMetadata) => {
+
+  // Interface for Plaid metadata
+  interface PlaidMetadata {
+    institution?: {
+      name: string;
+      institution_id: string;
+    };
+    accounts?: Array<{
+      id: string;
+      name: string;
+      mask: string;
+      type: string;
+      subtype: string;
+    }>;
+    link_session_id?: string;
+    [key: string]: any;
+  }
+
+  // Interface for token exchange response
+  interface TokenExchangeResponse {
+    accessToken: string;
+    itemId: string;
+    error?: string;
+  }
+
+  // Handle successful Plaid connection
+  const handlePlaidSuccess = async (public_token: string, metadata: PlaidMetadata) => {
     if (!user?.sub) return;
     
     try {
-      setLoading(true);
-      setError(null);
+      setIsPlaidLoading(true);
+      setPlaidError(null);
       
       // Exchange public token for access token
       const response = await fetch('/api/plaid/exchange-token', {
@@ -245,7 +355,7 @@ const usePlaidLinkSetup = ({ user, onSuccess, onError }: any) => {
           public_token,
           metadata,
           userId: user.sub,
-          ...(reconnecting ? { reconnect: true } : {})
+          ...(isReconnecting ? { reconnect: true } : {})
         }),
       });
       
@@ -253,152 +363,68 @@ const usePlaidLinkSetup = ({ user, onSuccess, onError }: any) => {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to exchange token');
       }
+
+      const { accessToken, itemId } = await response.json() as TokenExchangeResponse;
       
-      // Call success callback
-      onSuccess?.(public_token, metadata);
+      // Update user's connection type and Plaid key
+      const updateResponse = await fetch('/api/user/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.sub,
+          connectionType: ConnectionType.PLAID,
+          key: accessToken
+        }),
+      });
       
+      if (!updateResponse.ok) {
+        throw new Error('Failed to update user connection');
+      }
+      
+      // Use the refreshData method from useDataUser hook if available
+      if (user.refreshData) {
+        await user.refreshData();
+      } else {
+        // Otherwise refresh user data manually
+        await fetchUserData();
+      }
+      
+      router.push('/dashboard');
     } catch (error) {
       console.error('Exchange token error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to connect account';
-      setError(errorMessage);
-      onError?.(errorMessage);
+      setPlaidError(error instanceof Error ? error.message : 'Failed to connect account');
+      setViewState('ERROR');
     } finally {
-      setLoading(false);
+      setIsPlaidLoading(false);
     }
   };
   
   // Initialize Plaid Link
   const { open, ready } = usePlaidLink({
-    token: linkToken || '',
-    onSuccess: handlePlaidSuccess,
+    token: plaidLinkToken || '',
+    onSuccess: handlePlaidSuccess as any,
     onExit: (err) => {
       if (err) {
         console.error('Plaid Link exit error:', err);
-        const errorMessage = 'There was an issue connecting your bank account.';
-        setError(errorMessage);
-        onError?.(errorMessage);
-      }
-    }
-  });
-  
-  return {
-    linkToken,
-    loading,
-    error,
-    reconnecting,
-    fetchLinkToken,
-    openPlaidLink: () => open(),
-    isPlaidLinkReady: ready
-  };
-};
-
-// User Config component
-export default function UserConfig() {
-  const router = useRouter();
-  const { user, error: auth0Error, isLoading: auth0Loading } = useDataUser();
-  const [localError, setLocalError] = useState<string | null>(null);
-  const [viewState, setViewState] = useState<ViewState>('LOADING');
-  const [selectedConnectionType, setSelectedConnectionType] = useState<ConnectionType>(ConnectionType.NONE);
-  
-  // Use custom Plaid link hook
-  const plaidLink = usePlaidLinkSetup({
-    user,
-    onSuccess: async (public_token: any, metadata: any) => {
-      try {
-        setLocalError(null);
-        
-        // First, update user's connection type on the server
-        const typeResponse = await fetch('/api/connection/set-type', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: user?.sub,
-            connectionType: ConnectionType.PLAID
-          }),
-        });
-        
-        if (!typeResponse.ok) {
-          throw new Error('Failed to set connection type');
-        }
-        
-        // Then exchange the Plaid token
-        const tokenResponse = await fetch('/api/plaid/exchange-token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            public_token,
-            metadata,
-            userId: user?.sub
-          }),
-        });
-        
-        if (!tokenResponse.ok) {
-          throw new Error('Failed to exchange token');
-        }
-        
-        // Refresh data after successful connection
-        if (user?.refreshData) {
-          await user.refreshData();
-        }
-        
-        router.push('/dashboard');
-      } catch (error) {
-        console.error('Error completing Plaid setup:', error);
-        setLocalError(error instanceof Error ? error.message : 'Failed to complete setup');
+        setPlaidError('There was an issue connecting your bank account.');
         setViewState('ERROR');
       }
-    },
-    onError: (error: any) => {
-      setLocalError(error);
-      setViewState('ERROR');
     }
   });
-  
-  // This effect manages the component lifecycle
-  useEffect(() => {
-    // Skip if still loading auth data or no user
-    if (auth0Loading || !user) return;
-    
-    // If user already has data, redirect to dashboard
-    if (user.data) {
-      router.push('/dashboard');
-      return;
-    }
-    
-    // If everything is loaded but user has no data yet, show connection selection
-    if (!auth0Loading && !user.dataLoading && viewState === 'LOADING') {
-      setViewState('CONNECTION_SELECT');
-    }
-  }, [auth0Loading, user, router, viewState]);
-  
-  // Handle connection type selection
-  const handleSelectConnectionType = async (type: ConnectionType) => {
-    setSelectedConnectionType(type);
-    
-    // We don't update the user's connection type yet - that happens when they complete setup
-    // We just change which setup flow to show
-    if (type === ConnectionType.PLAID) {
-      setViewState('PLAID_SETUP');
-      if (!plaidLink.linkToken && !plaidLink.loading) {
-        plaidLink.fetchLinkToken();
-      }
-    } else if (type === ConnectionType.NESSI) {
-      setViewState('NESSI_SETUP');
-    }
-  };
   
   // Handle NESSI setup completion
   const handleNessiComplete = async () => {
+    if (!user?.sub) return;
+    
     try {
-      setLocalError(null);
-      
-      // Update user's connection type on the server
-      const response = await fetch('/api/connection/set-type', {
+      // Update user's connection type to NESSI
+      const response = await fetch('/api/user/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: user?.sub,
-          connectionType: ConnectionType.NESSI
+          userId: user.sub,
+          connectionType: ConnectionType.NESSI,
+          key: 'default-nessi-key' // Use a default key for NESSI
         }),
       });
       
@@ -406,41 +432,93 @@ export default function UserConfig() {
         throw new Error('Failed to set connection type');
       }
       
-      // Refresh user data to reflect the new connection type
-      if (user?.refreshData) {
+      // Use the refreshData method from useDataUser hook if available
+      if (user.refreshData) {
         await user.refreshData();
+      } else {
+        // Otherwise refresh user data manually
+        await fetchUserData();
       }
       
       router.push('/dashboard');
     } catch (error) {
       console.error('Error completing NESSI setup:', error);
-      setLocalError(error instanceof Error ? error.message : 'Failed to complete setup');
+      setViewState('ERROR');
+    }
+  };
+
+  // Handle connection type selection
+  const handleSelectConnectionType = (type: ConnectionType) => {
+    setSelectedConnectionType(type);
+    
+    if (type === ConnectionType.PLAID) {
+      setViewState('PLAID_SETUP');
+      fetchPlaidLinkToken();
+    } else if (type === ConnectionType.NESSI) {
+      setViewState('NESSI_SETUP');
     }
   };
   
+  // Check if user should be redirected to dashboard
+  const checkUserRedirect = async (): Promise<boolean> => {
+    // Skip if still loading auth data or no user
+    if (auth0Loading || !user?.sub) return false;
+    
+    try {
+      // Fetch updated user data
+      const userData = await fetchUserData();
+      
+      // If user has a connection type set, redirect to dashboard
+      if (userData && userData.connection_type && userData.connection_type !== ConnectionType.NONE) {
+        router.push('/dashboard');
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Error checking user redirect:', error);
+      return false;
+    }
+  };
+  
+  // This effect manages the component lifecycle
+  useEffect(() => {
+    const initializeComponent = async () => {
+      // Skip if still loading auth data or no user
+      if (auth0Loading || !user?.sub) return;
+      
+      // Check if user should be redirected
+      const shouldRedirect = await checkUserRedirect();
+      
+      if (!shouldRedirect) {
+        // If everything is loaded but user has no connection yet, show connection selection
+        setViewState('CONNECTION_SELECT');
+      }
+    };
+    
+    initializeComponent();
+  }, [auth0Loading, user?.sub]);
+  
   // Show loading state
-  if (auth0Loading || user?.dataLoading || viewState === 'LOADING') {
+  if (auth0Loading || user?.dataLoading || viewState === 'LOADING' || isPlaidLoading) {
     return <LoadingState />;
   }
   
   // Show errors
-  const errorMessage = localError || auth0Error?.message || user?.dataError?.message || plaidLink.error;
+  const errorMessage = plaidError || auth0Error?.message || user?.dataError?.message;
   if (errorMessage || viewState === 'ERROR') {
     return <ErrorState 
       message={errorMessage || "An error occurred during setup."} 
-      onRetry={() => router.push('/auth/login')} 
+      onRetry={() => {
+        setViewState('CONNECTION_SELECT');
+        setPlaidError(null);
+      }} 
     />;
   }
   
   // If not authenticated, redirect to login
   if (!user) {
     router.push('/auth/login');
-    return null;
-  }
-  
-  // If already connected with data, redirect to dashboard
-  if (user.data) {
-    router.push('/dashboard');
     return null;
   }
   
@@ -459,15 +537,15 @@ export default function UserConfig() {
   if (viewState === 'PLAID_SETUP') {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        {plaidLink.loading ? (
+        {isPlaidLoading ? (
           <p>Preparing Plaid connection...</p>
-        ) : plaidLink.linkToken ? (
+        ) : plaidLinkToken ? (
           <PlaidLinkCard 
-            isReconnecting={false}
-            onConnect={plaidLink.openPlaidLink}
+            isReconnecting={isReconnecting}
+            onConnect={() => open()}
             onSkip={() => router.push('/dashboard')}
             onBack={() => setViewState('CONNECTION_SELECT')}
-            disabled={!plaidLink.isPlaidLinkReady}
+            disabled={!ready}
           />
         ) : (
           <div className="flex flex-col items-center">
