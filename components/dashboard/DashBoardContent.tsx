@@ -37,7 +37,11 @@ export function DashboardContent({ selectedSection, onSelectSection }: Dashboard
           />
         );
        case "Stock Investments":
-         return <InvestmentSection/>;
+         return <InvestmentSection
+         user={user}
+         userLoading={isLoading}
+          onBack={() => onSelectSection(null)}
+         />;
        case "Cards":
          return <CreditCardRecommendations />;
     //   case "Stock Trading":

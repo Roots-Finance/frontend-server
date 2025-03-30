@@ -1,4 +1,4 @@
-import { FullLessonData } from "@/components/dashboard/types";
+import { FullLessonData, PortfolioPreferences } from "@/components/dashboard/types";
 import { CategoryData, DBUser, DBUserData } from "./types";
 
 export interface DBResponse<T extends any> {
@@ -35,7 +35,6 @@ export interface UpdateUserRequest {
   first_name?: string;
   last_name?: string;
 }
-
 
 export class DBLib {
   private baseUrl: string;
@@ -100,7 +99,7 @@ export class DBLib {
     // Add statusCode to the response for internal tracking
     data.statusCode = response.status;
 
-    console.log(data)
+    console.log(data);
 
     return data.data;
   }
@@ -114,7 +113,6 @@ export class DBLib {
     if (!this.baseUrl) {
       throw new Error("Backend URL is not configured");
     }
-
 
     const response = await fetch(`${this.baseUrl}/api/user`, {
       method: "PATCH",
@@ -225,7 +223,7 @@ export class DBLib {
     return data.data;
   }
 
-  async getAiUserBudgetInfo(oauthSub: string): Promise<CategoryData & {reasoning: string}> {
+  async getAiUserBudgetInfo(oauthSub: string): Promise<CategoryData & { reasoning: string }> {
     if (!this.baseUrl) {
       throw new Error("Backend URL is not configured");
     }
@@ -237,36 +235,56 @@ export class DBLib {
       },
     });
 
-    const data = (await response.json()) as DBResponse<CategoryData & {reasoning: string}>;
+    const data = (await response.json()) as DBResponse<CategoryData & { reasoning: string }>;
 
     return data.data;
   }
 
   /**
- * Sends user portfolio data
- * @param portfolioData Portfolio data to send
- * @returns Promise with API response
- */
-async sendUserPortfolio(oauthSub: string, portfolioData: any): Promise<any> {
-  if (!this.baseUrl) {
-    throw new Error("Backend URL is not configured");
+   * Sends user portfolio data
+   * @param portfolioData Portfolio data to send
+   * @returns Promise with API response
+   */
+  async sendUserPortfolio(oauthSub: string, portfolioData: PortfolioPreferences): Promise<void> {
+    if (!this.baseUrl) {
+      throw new Error("Backend URL is not configured");
+    }
+
+    const response = await fetch(`${this.baseUrl}/api/user/${encodeURIComponent(oauthSub)}/portfolio`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(portfolioData),
+    });
+
+    const data = (await response.json()) as DBResponse<void>;
+
+    // Add statusCode to the response for internal tracking
+    data.statusCode = response.status;
+
+    return data.data;
   }
 
-  const response = await fetch(`${this.baseUrl}/api/user/${encodeURIComponent(oauthSub)}/portfolio`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(portfolioData),
-  });
+  async getPortfolio(oauthSub: string): Promise<PortfolioPreferences> {
+    if (!this.baseUrl) {
+      throw new Error("Backend URL is not configured");
+    }
 
-  const data = await response.json() as DBResponse<any>;
-  
-  // Add statusCode to the response for internal tracking
-  data.statusCode = response.status;
+    const response = await fetch(`${this.baseUrl}/api/user/${encodeURIComponent(oauthSub)}/portfolio`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
 
-  return data.data;
-}
+    const data = (await response.json()) as DBResponse<PortfolioPreferences>;
+
+    // Add statusCode to the response for internal tracking
+    data.statusCode = response.status;
+
+    return data.data;
+  }
 
   /**
    * Gets AI-generated financial lessons for a user
@@ -289,9 +307,6 @@ async sendUserPortfolio(oauthSub: string, portfolioData: any): Promise<any> {
     return data.data;
   }
 
-
- 
-
   /**
    * Generic method to make API requests
    * @param endpoint API endpoint
@@ -310,9 +325,7 @@ async sendUserPortfolio(oauthSub: string, portfolioData: any): Promise<any> {
       throw new Error("Backend URL is not configured");
     }
 
-    const url = `${this.baseUrl}${
-      endpoint.startsWith("/") ? endpoint : `/${endpoint}`
-    }`;
+    const url = `${this.baseUrl}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
 
     const options: RequestInit = {
       method,
