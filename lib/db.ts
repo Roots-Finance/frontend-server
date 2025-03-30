@@ -275,7 +275,7 @@ export class DBLib {
       throw new Error("Backend URL is not configured");
     }
 
-    const response = await fetch(`${this.baseUrl}/api/user/${encodeURIComponent(oauthSub)}/portfolio`, {
+    const response = await fetch(`${this.baseUrl}/api/user/${encodeURIComponent(oauthSub)}/portfolio/preferences`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -336,6 +336,23 @@ export class DBLib {
       console.error("Error checking portfolio preferences:", err);
       return false;
     }
+  }
+
+  async getAiGeneratedPortfolio(oauth_sub: string): Promise<PortfolioRecommendation> {
+    if (!this.baseUrl) {
+      throw new Error("Backend URL is not configured");
+    }
+
+    const response = await fetch(`${this.baseUrl}/api/user/${encodeURIComponent(oauth_sub)}/portfolio/ai`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    const data = (await response.json()) as DBResponse<PortfolioRecommendation>;
+
+    return data.data;
   }
 
   /**

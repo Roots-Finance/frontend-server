@@ -23,7 +23,11 @@ import {
   InvestmentSectionProps, 
   PortfolioPreferences
 } from "./invest/types";
-import { ITransaction } from "@/lib/types";
+import { ITransaction, CategoryData } from "@/lib/types";
+
+// Import utility functions for processing chart data
+import { minimizeBudgetProjection } from "@/lib/sections/budget";
+import { calculateInvestmentValue } from "@/lib/dataProcessing";
 
 /**
  * Main component for the Investment Section of the dashboard
@@ -53,7 +57,11 @@ export function InvestmentSection({
   // Questionnaire states
   const [hasCompletedQuestionnaire, setHasCompletedQuestionnaire] = useState<boolean>(false);
   const [isQuestionnaireOpen, setIsQuestionnaireOpen] = useState<boolean>(false);
-  
+
+  // Category settings state for chart data processing
+  const [categorySettings, setCategorySettings] = useState<CategoryData | null>(null);
+  const [isSettingsLoading, setIsSettingsLoading] = useState<boolean>(false);
+
   // Check if user has already completed the questionnaire
   useEffect(() => {
     const checkQuestionnaireStatus = async (): Promise<void> => {
@@ -86,32 +94,44 @@ export function InvestmentSection({
     checkQuestionnaireStatus();
   }, [user?.sub, userLoading]);
 
+  // Fetch category settings
+  useEffect(() => {
+    const fetchCategorySettings = async () => {
+      if (!user?.sub) return;
+      try {
+        setIsSettingsLoading(true);
+        const response = await fetch(`/api/sections/Budget/categories?userId=${encodeURIComponent(user.sub)}`);
+        if (!response.ok) throw new Error(`Failed to fetch categories: ${response.status}`);
+        const data = await response.json() as CategoryData | null;
+        setCategorySettings(data || {});
+      } catch (err) {
+        console.error("Error loading categories:", err);
+        setCategorySettings({});
+      } finally {
+        setIsSettingsLoading(false);
+      }
+    };
+
+    if (user?.sub && !categorySettings) {
+      fetchCategorySettings();
+    }
+  }, [user?.sub, categorySettings]);
+
   // Load chart data from user data
   useEffect(() => {
     const fetchChartData = async (): Promise<void> => {
-      if (!user || userLoading || isChartLoading || !user.data) return;
+      if (!user || userLoading || isChartLoading || !user.data || isSettingsLoading || !categorySettings) return;
       
       try {
         setIsChartLoading(true);
         
-        // Use transaction data from useDataUser hook
-        if (user.data.transactions) {
-          // process transactions by date (should be sorted already)
-
-          let totalValue = 0;
-          const processedData: ITransaction[] = user.data.transactions.map(tx => {
-            totalValue += tx.amount;
-            return {
-              ...tx,
-              value: totalValue
-            };
-          });
-          
-          
-          
-          setChartData(processedData);
-        }
+        // Generate projection data using the category settings
+        const projectionData = minimizeBudgetProjection(user.data.transactions, categorySettings);
         
+        // Calculate cumulative investment value using the utility function
+        const enhancedData = calculateInvestmentValue(projectionData);
+        
+        setChartData(enhancedData);
         chartDataFetchedRef.current = true;
       } catch (err) {
         console.error("Error generating chart data:", err);
@@ -124,7 +144,7 @@ export function InvestmentSection({
     if (!chartDataFetchedRef.current) {
       fetchChartData();
     }
-  }, [user, userLoading, isChartLoading]);
+  }, [user, userLoading, isChartLoading, isSettingsLoading, categorySettings]);
 
   // Fetch lessons content
   useEffect(() => {
@@ -159,7 +179,33 @@ export function InvestmentSection({
   const resetChartData = (): void => {
     chartDataFetchedRef.current = false;
     setChartError(null);
-    fetchChartData();
+
+    const fetchChartData = async (): Promise<void> => {
+      if (!user || userLoading || isChartLoading || !user.data || isSettingsLoading || !categorySettings) return;
+      
+      try {
+        setIsChartLoading(true);
+        
+        // Generate projection data using the category settings
+        const projectionData = minimizeBudgetProjection(user.data.transactions, categorySettings);
+        
+        // Calculate cumulative investment value using the utility function
+        const enhancedData = calculateInvestmentValue(projectionData);
+        
+        setChartData(enhancedData);
+        chartDataFetchedRef.current = true;
+      } catch (err) {
+        console.error("Error generating chart data:", err);
+        setChartError(err instanceof Error ? err.message : "An unknown error occurred generating chart data");
+      } finally {
+        setIsChartLoading(false);
+      }
+    };
+
+    // Call fetchChartData again; note that this will run when the dependencies update
+    (async () => {
+      await fetchChartData();
+    })();
   };
 
   const retryFetchLessons = (): void => {
@@ -168,49 +214,6 @@ export function InvestmentSection({
     setIsLessonsLoading(true);
     fetchLessonsContent();
   };
-
-  const fetchChartData = async (): Promise<void> => {
-    if (!user || userLoading || !user.data) return;
-    
-    try {
-      setIsChartLoading(true);
-      
-      // Use transaction data from useDataUser hook
-      if (user.data.transactions) {
-        // Process transactions to create chart data - simplified for brevity
-       
-        let totalValue = 0;
-        const processedData: ITransaction[] = user.data.transactions.map(tx => {
-          totalValue += tx.amount;
-          return {
-            ...tx,
-            value: totalValue
-          };
-        });
-        
-        setChartData(processedData);
-      }
-      
-      chartDataFetchedRef.current = true;
-    } catch (err) {
-      console.error("Error generating chart data:", err);
-      setChartError(err instanceof Error ? err.message : "An unknown error occurred generating chart data");
-    } finally {
-      setIsChartLoading(false);
-    }
-  };
-
-  // Chart line configuration
-  const lines: ChartLine[] = [
-    {
-      dataKey: "value",
-      name: "Portfolio Value",
-      color: "#3182CE",
-      type: "area",
-      strokeWidth: 2,
-      dot: false,
-    },
-  ];
 
   // Helper function for fetching lessons content
   async function fetchLessonsContent(): Promise<void> {
@@ -243,6 +246,18 @@ export function InvestmentSection({
       setIsLessonsLoading(false);
     }
   }
+
+  // Chart line configuration
+  const lines: ChartLine[] = [
+    {
+      dataKey: "totalValue",
+      name: "Investment Growth",
+      color: "#10b981",
+      type: "area",
+      strokeWidth: 2,
+      dot: false,
+    },
+  ];
 
   // No user data - render a basic message
   if (!user) {
@@ -295,12 +310,12 @@ export function InvestmentSection({
         </Card>
         
         {/* Investment Chart Card */}
-        <InvestmentChart 
-          chartData={chartData}
-          isChartLoading={isChartLoading}
-          chartError={chartError}
+        <TransactionChart 
+          data={chartData}
+          useDefaultLine={false}
+          title="Investment Growth"
+          description="Track the cumulative value of your investments over time"
           lines={lines}
-          resetChartData={resetChartData}
         />
 
         {/* Portfolio Allocation Manager */}
