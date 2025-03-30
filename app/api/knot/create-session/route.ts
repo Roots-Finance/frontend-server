@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
 
     // Prepare the request payload
     const payload = {
-      type: "card_switcher",
+      type: 'transaction_link',
       phone_number: phone_number,
       email: email,
       external_user_id: user_id,
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
         blocked: card_blocked,
         has_funds: card_has_funds
       },
-      card_id: user_id,
+      merchantIds: [16],
       processor_token: processor_token
     };
     

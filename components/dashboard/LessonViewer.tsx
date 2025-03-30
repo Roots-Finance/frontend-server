@@ -6,8 +6,9 @@ import { X, ArrowLeft, ArrowRight, CheckCircle, Maximize2, Minimize2 } from "luc
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { TransactionChart, ChartLine } from "@/components/dashboard/charts/TransactionChart";
-import { Lesson } from "@/components/dashboard/sections/BudgetingSection";
+
 import { ITransaction } from "@/lib/types";
+import { Lesson } from "./types";
 
 interface LessonViewerProps {
   lesson: Lesson;

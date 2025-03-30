@@ -1,4 +1,5 @@
-import { DBUser, DBUserData } from "./types";
+import { FullLessonData } from "@/components/dashboard/types";
+import { CategoryData, DBUser, DBUserData } from "./types";
 
 export interface DBResponse<T extends any> {
   status: 0 | 1; // 0 for failure, 1 for success
@@ -35,9 +36,6 @@ export interface UpdateUserRequest {
   last_name?: string;
 }
 
-export interface BudgetData {
-  [category: string]: number;
-}
 
 export class DBLib {
   private baseUrl: string;
@@ -186,7 +184,7 @@ export class DBLib {
    * @param oauthSub OAuth subject identifier
    * @returns Promise with API response containing user budget data
    */
-  async getUserBudget(oauthSub: string): Promise<BudgetData | null> {
+  async getUserBudget(oauthSub: string): Promise<CategoryData | null> {
     if (!this.baseUrl) {
       throw new Error("Backend URL is not configured");
     }
@@ -198,7 +196,7 @@ export class DBLib {
       },
     });
 
-    const data = (await response.json()) as DBResponse<BudgetData>;
+    const data = (await response.json()) as DBResponse<CategoryData>;
 
     return data.data;
   }
@@ -209,7 +207,7 @@ export class DBLib {
    * @param budgetData Budget data to update
    * @returns Promise with API response containing updated budget data
    */
-  async updateUserBudget(oauthSub: string, budgetData: BudgetData): Promise<BudgetData> {
+  async updateUserBudget(oauthSub: string, budgetData: CategoryData): Promise<CategoryData> {
     if (!this.baseUrl) {
       throw new Error("Backend URL is not configured");
     }
@@ -222,12 +220,12 @@ export class DBLib {
       body: JSON.stringify(budgetData),
     });
 
-    const data = (await response.json()) as DBResponse<BudgetData>;
+    const data = (await response.json()) as DBResponse<CategoryData>;
 
     return data.data;
   }
 
-  async getAiUserBudgetInfo(oauthSub: string): Promise<BudgetData & {reasoning: string}> {
+  async getAiUserBudgetInfo(oauthSub: string): Promise<CategoryData & {reasoning: string}> {
     if (!this.baseUrl) {
       throw new Error("Backend URL is not configured");
     }
@@ -239,10 +237,34 @@ export class DBLib {
       },
     });
 
-    const data = (await response.json()) as DBResponse<BudgetData & {reasoning: string}>;
+    const data = (await response.json()) as DBResponse<CategoryData & {reasoning: string}>;
 
     return data.data;
   }
+
+  /**
+   * Gets AI-generated financial lessons for a user
+   * @param oauthSub OAuth subject identifier
+   * @returns Promise with API response containing user lessons grouped by status
+   */
+  async getAiLessons(oauthSub: string): Promise<FullLessonData> {
+    if (!this.baseUrl) {
+      throw new Error("Backend URL is not configured");
+    }
+
+    const response = await fetch(`${this.baseUrl}/api/user/${encodeURIComponent(oauthSub)}/lessons`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    const data = (await response.json()) as DBResponse<FullLessonData>;
+    return data.data;
+  }
+
+
+ 
 
   /**
    * Generic method to make API requests

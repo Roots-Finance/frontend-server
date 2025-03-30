@@ -6,13 +6,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ArrowLeft } from "lucide-react";
 import { TransactionChart, ChartLine } from "@/components/dashboard/charts/TransactionChart";
 import { ExtendedUser } from "@/hooks/useDataUser";
-import { ITransaction } from "@/lib/types";
+import { CategoryData, ITransaction } from "@/lib/types";
 import { minimizeBudgetProjection } from "@/lib/sections/budget";
 import { calculateInvestmentValue } from "@/lib/dataProcessing";
 
-interface InvestmentData {
-  [category: string]: number;
-}
+
 
 interface InvestmentSectionProps {
   user: ExtendedUser | null;
@@ -27,7 +25,7 @@ export function InvestmentSection({ user, userLoading, onBack }: InvestmentSecti
   const [chartData, setChartData] = useState<ITransaction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [categorySettings, setCategorySettings] = useState<InvestmentData | null>(null);
+  const [categorySettings, setCategorySettings] = useState<CategoryData | null>(null);
 
   // Fetch category settings
   useEffect(() => {
@@ -37,7 +35,7 @@ export function InvestmentSection({ user, userLoading, onBack }: InvestmentSecti
         setIsLoading(true);
         const response = await fetch(`/api/sections/Budget/categories?userId=${encodeURIComponent(user.sub)}`);
         if (!response.ok) throw new Error(`Failed to fetch categories: ${response.status}`);
-        const data = await response.json() as InvestmentData | null;
+        const data = await response.json() as CategoryData | null;
         setCategorySettings(data || {});
       } catch (err) {
         console.error("Error loading categories:", err);

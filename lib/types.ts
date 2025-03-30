@@ -47,3 +47,7 @@ export enum ConnectionType {
   NESSI = "NESSI",
   NONE = "NONE"
 }
+
+export interface CategoryData {
+  [category: string]: number;
+}

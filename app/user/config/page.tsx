@@ -392,12 +392,12 @@ export default function UserConfig() {
         sessionId: knotSessionId,
         clientId: process.env.NEXT_PUBLIC_KNOTAPI_CLIENT_ID || "",
         environment: process.env.NODE_ENV === 'production' ? 'production' : 'development',
-        product: 'card_switcher',
-        companyName: 'Your Financial App',
+        product: 'transaction_link',
+        companyName: 'Roots',
         primaryColor: '#0070f3',
         // Any additional options can be passed here
         useCategories: true,
-        card_id: user?.sub || "",
+        merchantIds: [16],
         entryPoint: 'connection_page'
       };
       

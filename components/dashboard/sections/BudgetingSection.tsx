@@ -10,44 +10,10 @@ import { getResourceColor, getResourceIcon } from "./utils";
 import { LessonViewer } from "@/components/dashboard/LessonViewer";
 import { ExtendedUser } from "@/hooks/useDataUser";
 import { Slider } from "@/components/ui/slider";
-import { ITransaction } from "@/lib/types";
+import { CategoryData, ITransaction } from "@/lib/types";
 import { minimizeBudgetProjection } from "@/lib/sections/budget";
-import { ResourceType } from "../types";
+import { FullLessonData, Lesson, ResourceType } from "../types";
 import { Toaster } from "@/components/ui/sonner";
-
-export interface LessonContent {
-  title: string;
-  content: string;
-  completed: boolean;
-}
-
-export interface Lesson {
-  id: string;
-  title: string;
-  description: string;
-  duration: string;
-  completed?: boolean;
-  content: LessonContent[];
-}
-
-export interface Resource {
-  id: string;
-  title: string;
-  type: ResourceType;
-  url: string;
-  description?: string;
-}
-
-export interface BudgetingSectionData {
-  title: string;
-  description: string;
-  lessons: Lesson[];
-  resources: Resource[];
-}
-
-interface BudgetData {
-  [category: string]: number;
-}
 
 interface BudgetingSectionProps {
   user: ExtendedUser | null;
@@ -58,7 +24,7 @@ interface BudgetingSectionProps {
 /** Updated props for the sliders card to include savings information. */
 interface CategorySlidersCardProps {
   uniqueCategories: string[];
-  categorySliders: BudgetData;
+  categorySliders: CategoryData;
   spendingData: { [category: string]: number }; // spending totals per category
   isSaving: boolean;
   reasoning?: string;
@@ -166,20 +132,28 @@ function CategorySlidersCard({
 }
 
 export function BudgetingSection({ user, userLoading, onBack }: BudgetingSectionProps) {
-  const dataFetchedRef = useRef(false);
+  const chartDataFetchedRef = useRef(false);
+  const lessonsFetchedRef = useRef(false);
   const transactionIdsRef = useRef<string[]>([]);
 
   const [chartData, setChartData] = useState<ITransaction[]>([]);
-  const [sectionData, setSectionData] = useState<BudgetingSectionData | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [sectionData, setSectionData] = useState<FullLessonData | null>(null);
+  
+  // Separate loading states for different parts of the page
+  const [isChartLoading, setIsChartLoading] = useState(false);
+  const [isLessonsLoading, setIsLessonsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  
+  // Separate error states
+  const [chartError, setChartError] = useState<string | null>(null);
+  const [lessonsError, setLessonsError] = useState<string | null>(null);
+  
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
   const [completedLessons, setCompletedLessons] = useState<string[]>([]);
 
-  const [categorySliders, setCategorySliders] = useState<BudgetData>({});
+  const [categorySliders, setCategorySliders] = useState<CategoryData>({});
   const [uniqueCategories, setUniqueCategories] = useState<string[]>([]);
-  const [userBudget, setUserBudget] = useState<BudgetData | null>(null);
+  const [userBudget, setUserBudget] = useState<CategoryData | null>(null);
   const [aiReasoning, setAiReasoning] = useState<string>("");
   const [spendingData, setSpendingData] = useState<{ [category: string]: number }>({});
 
@@ -190,7 +164,7 @@ export function BudgetingSection({ user, userLoading, onBack }: BudgetingSection
       try {
         const response = await fetch(`/api/sections/Budget/categories?userId=${encodeURIComponent(user.sub)}`);
         if (!response.ok) throw new Error(`Failed to fetch default categories: ${response.status}`);
-        const data = await response.json() as BudgetData | null;
+        const data = await response.json() as CategoryData | null;
         const defaultBudget = data || {};
         setUserBudget(defaultBudget);
         setCategorySliders(defaultBudget);
@@ -231,45 +205,47 @@ export function BudgetingSection({ user, userLoading, onBack }: BudgetingSection
     }
   }, [user?.data?.transactions]);
 
-  // Fetch chart data and section content
+  // Fetch chart data - separated from lessons content
   useEffect(() => {
-    const fetchBudgetData = async () => {
-      if (!user || !user.data || userLoading || isLoading) return;
+    const fetchChartData = async () => {
+      if (!user || !user.data || userLoading || isChartLoading) return;
+      
       const currentTxIds = user.data.transactions.map(t => t.transaction_id).sort().join(",");
       if (
         transactionIdsRef.current.length > 0 &&
         currentTxIds === transactionIdsRef.current.join(",") &&
-        chartData.length &&
-        sectionData
+        chartData.length
       ) {
         return;
       }
+      
       transactionIdsRef.current = currentTxIds.split(",");
+      
       try {
-        setIsLoading(true);
+        setIsChartLoading(true);
         const projectionData = minimizeBudgetProjection(user.data.transactions, {});
         setChartData(projectionData);
-        const contentResponse = await fetch("/api/sections/Budget", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ chartData: projectionData }),
-        });
-        if (!contentResponse.ok) throw new Error(`Section content failed: ${contentResponse.status}`);
-        const contentData = await contentResponse.json();
-        setSectionData(contentData);
-        dataFetchedRef.current = true;
+        chartDataFetchedRef.current = true;
       } catch (err) {
-        console.error("Error fetching budget data:", err);
-        setError(err instanceof Error ? err.message : "An unknown error occurred");
+        console.error("Error generating chart data:", err);
+        setChartError(err instanceof Error ? err.message : "An unknown error occurred generating chart data");
       } finally {
-        setIsLoading(false);
+        setIsChartLoading(false);
       }
     };
 
-    if (!dataFetchedRef.current) {
-      fetchBudgetData();
+    if (!chartDataFetchedRef.current) {
+      fetchChartData();
     }
-  }, [user, userLoading, isLoading, chartData.length, sectionData]);
+  }, [user, userLoading, isChartLoading, chartData.length]);
+
+  // Fetch lessons content separately - no dependency on chart data
+  useEffect(() => {
+    // Fetch lessons regardless of chart data status
+    if (!lessonsFetchedRef.current) {
+      fetchLessonsContent();
+    }
+  }, [user?.sub, isLessonsLoading, sectionData]);
 
   // Update chart automatically when sliders change
   useEffect(() => {
@@ -282,12 +258,21 @@ export function BudgetingSection({ user, userLoading, onBack }: BudgetingSection
   const handleAISliders = async () => {
     if (!user?.sub) return;
     try {
-      const response = await fetch(`/api/sections/Budget/ai-categories?userId=${encodeURIComponent(user.sub)}`);
+      const response = await fetch(`/api/user/${user.sub}/ai-budget`);
       if (!response.ok) throw new Error("Failed to fetch AI categories");
-      const aiData = await response.json() as BudgetData & { reasoning?: string };
-      setUserBudget(aiData);
-      setCategorySliders(aiData);
-      setAiReasoning(aiData.reasoning || "");
+      const responseData = await response.json();
+      if (responseData.status === 1 && responseData.data) {
+        const aiData = responseData.data;
+        // Extract reasoning if it exists
+        const reasoning = aiData.reasoning || "";
+        delete aiData.reasoning;
+        
+        setUserBudget(aiData);
+        setCategorySliders(aiData);
+        setAiReasoning(reasoning);
+      } else {
+        throw new Error(responseData.message || "Invalid AI budget response format");
+      }
     } catch (err) {
       console.error("Error updating AI sliders:", err);
     }
@@ -304,7 +289,7 @@ export function BudgetingSection({ user, userLoading, onBack }: BudgetingSection
         body: JSON.stringify({ userId: user.sub, budget: categorySliders }),
       });
       if (!response.ok) throw new Error(`Failed to save budget: ${response.status}`);
-      const updatedBudget = await response.json() as BudgetData;
+      const updatedBudget = await response.json() as CategoryData;
       setUserBudget(updatedBudget);
     } catch (err) {
       console.error("Error saving budget:", err);
@@ -344,7 +329,8 @@ export function BudgetingSection({ user, userLoading, onBack }: BudgetingSection
     if (!latest || date > latest) latest = date;
   }
 
-  if (!earliest || !latest) {
+  // No transaction data - render a basic message  
+  if (!user?.data?.transactions?.length) {
     return (
       <div className="space-y-6">
         <Card className="border shadow-sm">
@@ -361,55 +347,10 @@ export function BudgetingSection({ user, userLoading, onBack }: BudgetingSection
     );
   }
 
-  const months = (latest.getFullYear() - earliest.getFullYear()) * 12 + latest.getMonth() - earliest.getMonth() + 1;
-  const perMonthSaving = totalSavings / months;
-
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <Card className="border shadow-sm">
-          <CardHeader>
-            <Button variant="ghost" size="sm" className="w-24 flex items-center justify-center mb-4" onClick={onBack}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
-            </Button>
-            <CardTitle>Budgeting</CardTitle>
-            <CardDescription>Loading budget data...</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-center py-8">
-              <div className="text-center">
-                <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent"></div>
-                <p className="mt-4 text-sm text-muted-foreground">Analyzing your spending patterns...</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="space-y-6">
-        <Card className="border shadow-sm">
-          <CardHeader>
-            <Button variant="ghost" size="sm" className="w-24 flex items-center justify-center mb-4" onClick={onBack}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
-            </Button>
-            <CardTitle className="text-red-600">Error Loading Budget Data</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="mb-4 text-muted-foreground">{error}</p>
-            <Button onClick={() => window.location.reload()} className="bg-primary hover:bg-primary/90">
-              Try Again
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  // Calculate monthly savings if we have date range
+  const perMonthSaving = (earliest && latest) ? 
+    totalSavings / (((latest.getFullYear() - earliest.getFullYear()) * 12) + latest.getMonth() - earliest.getMonth() + 1) : 
+    0;
 
   return (
     <div className="space-y-6">
@@ -442,12 +383,32 @@ export function BudgetingSection({ user, userLoading, onBack }: BudgetingSection
           <CardDescription>Your balance with better spending habits</CardDescription>
         </CardHeader>
         <CardContent>
-          <TransactionChart title="" description="" data={chartData} lines={lines} />
+          {isChartLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-center">
+                <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent"></div>
+                <p className="mt-4 text-sm text-muted-foreground">Analyzing your spending patterns...</p>
+              </div>
+            </div>
+          ) : chartError ? (
+            <div className="text-center py-8">
+              <p className="text-red-500 mb-2">{chartError}</p>
+              <Button onClick={() => {
+                chartDataFetchedRef.current = false;
+                setChartError(null);
+                window.location.reload();
+              }} variant="outline" size="sm">
+                Try Again
+              </Button>
+            </div>
+          ) : (
+            <TransactionChart title="" description="" data={chartData} lines={lines} />
+          )}
         </CardContent>
       </Card>
 
-      {/* Sliders Card with embedded Total Savings Display */}
-      {uniqueCategories.length > 0 && (
+      {/* Sliders Card - show as soon as chart data is available */}
+      {!isChartLoading && !chartError && uniqueCategories.length > 0 && (
         <CategorySlidersCard 
           uniqueCategories={uniqueCategories}
           categorySliders={categorySliders}
@@ -462,7 +423,7 @@ export function BudgetingSection({ user, userLoading, onBack }: BudgetingSection
         />
       )}
 
-      {/* Budget Content Card */}
+      {/* Budget Content Card - independently loadable */}
       <Card className="border shadow-sm">
         <CardHeader>
           <CardTitle className="text-2xl font-bold">
@@ -479,80 +440,152 @@ export function BudgetingSection({ user, userLoading, onBack }: BudgetingSection
               <BookOpen className="mr-2 h-5 w-5 text-primary" />
               Recommended Lessons
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {sectionData?.lessons?.map((lesson) => {
-                const isCompleted = completedLessons.includes(lesson.id);
-                return (
-                  <Card
-                    key={lesson.id}
-                    className={`overflow-hidden border ${isCompleted ? "border-green-500/50 bg-green-50/50" : ""}`}
-                  >
-                    <CardHeader className="p-4 pb-2">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg font-medium">{lesson.title}</CardTitle>
-                        {isCompleted && <Badge className="bg-green-500">Completed</Badge>}
-                      </div>
-                    </CardHeader>
-                    <CardContent className="p-4 pt-0">
-                      <p className="text-sm text-muted-foreground mb-4">{lesson.description}</p>
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center text-sm text-muted-foreground">
-                          <Clock className="mr-1 h-4 w-4" />
-                          {lesson.duration}
-                        </div>
-                        <Button
-                          size="sm"
-                          className={isCompleted ? "bg-green-600 hover:bg-green-700" : "bg-primary hover:bg-primary/90"}
-                          onClick={() => setActiveLesson(lesson)}
-                        >
-                          {isCompleted ? "Review Lesson" : "Start Lesson"}
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          </div>
-          {sectionData?.resources?.length ? (
-            <div>
-              <h3 className="text-xl font-medium mb-4 flex items-center">
-                <FileText className="mr-2 h-5 w-5 text-primary" />
-                Helpful Resources
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {sectionData.resources.map((resource) => (
-                  <Card key={resource.id} className="overflow-hidden border">
-                    <CardContent className="p-4">
-                      <div className="flex justify-between items-start mb-2">
-                        <h4 className="font-medium text-base">{resource.title}</h4>
-                        <Badge className={`ml-2 ${getResourceColor(resource.type)}`}>
-                          <span className="flex items-center">
-                            {getResourceIcon(resource.type)}
-                            <span className="ml-1">{resource.type}</span>
-                          </span>
-                        </Badge>
-                      </div>
-                      {resource.description && (
-                        <p className="text-sm text-muted-foreground mb-4">{resource.description}</p>
-                      )}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full mt-2 flex items-center justify-center"
-                        onClick={() => window.open(resource.url, "_blank")}
-                      >
-                        <ExternalLink className="mr-2 h-4 w-4" />
-                        View Resource
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
+            
+            {isLessonsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="text-center">
+                  <div className="inline-block h-6 w-6 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent"></div>
+                  <p className="mt-4 text-sm text-muted-foreground">Loading personalized lessons...</p>
+                </div>
               </div>
-            </div>
-          ) : null}
+            ) : lessonsError ? (
+              <div className="p-4 bg-red-50 border border-red-200 rounded-md">
+                <p className="text-red-500 mb-2">{lessonsError}</p>
+                <Button onClick={() => {
+                  lessonsFetchedRef.current = false;
+                  setLessonsError(null);
+                  setIsLessonsLoading(true);
+                  // Retry fetching lessons
+                  fetchLessonsContent();
+                }} variant="outline" size="sm">
+                  Retry Loading Lessons
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {sectionData?.lessons?.length ? sectionData.lessons.map((lesson) => {
+                  const isCompleted = completedLessons.includes(lesson.id);
+                  return (
+                    <Card
+                      key={lesson.id}
+                      className={`overflow-hidden border ${isCompleted ? "border-green-500/50 bg-green-50/50" : ""}`}
+                    >
+                      <CardHeader className="p-4 pb-2">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-lg font-medium">{lesson.title}</CardTitle>
+                          {isCompleted && <Badge className="bg-green-500">Completed</Badge>}
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-4 pt-0">
+                        <p className="text-sm text-muted-foreground mb-4">{lesson.description}</p>
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center text-sm text-muted-foreground">
+                            <Clock className="mr-1 h-4 w-4" />
+                            {lesson.duration}
+                          </div>
+                          <Button
+                            size="sm"
+                            className={isCompleted ? "bg-green-600 hover:bg-green-700" : "bg-primary hover:bg-primary/90"}
+                            onClick={() => setActiveLesson(lesson)}
+                          >
+                            {isCompleted ? "Review Lesson" : "Start Lesson"}
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                }) : (
+                  <p className="text-muted-foreground col-span-2">No lessons available at this time.</p>
+                )}
+              </div>
+            )}
+          </div>
+          
+          {/* Resources section - show placeholder if still loading */}
+          <div>
+            <h3 className="text-xl font-medium mb-4 flex items-center">
+              <FileText className="mr-2 h-5 w-5 text-primary" />
+              Helpful Resources
+            </h3>
+            
+            {isLessonsLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <div className="text-center">
+                  <div className="inline-block h-6 w-6 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent"></div>
+                  <p className="mt-2 text-sm text-muted-foreground">Loading resources...</p>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {sectionData?.resources?.length ? (
+                  sectionData.resources.map((resource) => (
+                    <Card key={resource.id} className="overflow-hidden border">
+                      <CardContent className="p-4">
+                        <div className="flex justify-between items-start mb-2">
+                          <h4 className="font-medium text-base">{resource.title}</h4>
+                          <Badge className={`ml-2 ${getResourceColor(resource.type)}`}>
+                            <span className="flex items-center">
+                              {getResourceIcon(resource.type)}
+                              <span className="ml-1">{resource.type}</span>
+                            </span>
+                          </Badge>
+                        </div>
+                        {resource.description && (
+                          <p className="text-sm text-muted-foreground mb-4">{resource.description}</p>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full mt-2 flex items-center justify-center"
+                          onClick={() => window.open(resource.url, "_blank")}
+                        >
+                          <ExternalLink className="mr-2 h-4 w-4" />
+                          View Resource
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <p className="text-muted-foreground col-span-3">No resources available at this time.</p>
+                )}
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
+      <Toaster />
     </div>
   );
+
+  // Helper function for fetching lessons content
+  async function fetchLessonsContent() {
+    if (!user?.sub || isLessonsLoading) return;
+    
+    try {
+      setIsLessonsLoading(true);
+      const contentResponse = await fetch(`/api/sections/Budget/lessons`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chartData, user_id: user.sub }),
+      });
+      
+      if (!contentResponse.ok) {
+        throw new Error(`Lessons content failed: ${contentResponse.status}`);
+      }
+      
+      const responseData = await contentResponse.json();
+      
+      if (responseData) {
+        setSectionData(responseData);
+        lessonsFetchedRef.current = true;
+      } else {
+        throw new Error(responseData.message || "Failed to fetch lessons data");
+      }
+    } catch (err) {
+      console.error("Error fetching lessons data:", err);
+      setLessonsError(err instanceof Error ? err.message : "An unknown error occurred loading lesson content");
+    } finally {
+      setIsLessonsLoading(false);
+    }
+  }
 }
