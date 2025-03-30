@@ -5,6 +5,8 @@ import { TransactionChart } from "@/components/dashboard/charts/TransactionChart
 import { SectionCardsGrid } from "@/components/dashboard/SectionCardsGrid";
 import { Section } from "@/components/dashboard/types";
 import { BudgetingSection } from "@/components/dashboard/sections/BudgetingSection";
+import { InvestmentSection } from "@/components/dashboard/sections/InvestmentSection";
+
 // import { getChartData } from "@/lib/data/transactions"
 import { useDataUser } from "@/hooks/useDataUser";
 
@@ -31,6 +33,14 @@ export function DashboardContent({ selectedSection, onSelectSection }: Dashboard
             onBack={() => onSelectSection(null)}
           />
         );
+      case "Stock Investments":
+        return (
+          <InvestmentSection
+            user={user}
+            userLoading={isLoading}
+            onBack={() => onSelectSection(null)}
+            />
+        )
     //   case "Stock Investments":
     //     return <InvestmentChart />;
     //   case "Bonds":

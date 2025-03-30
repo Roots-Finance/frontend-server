@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Clock, ExternalLink, BookOpen, FileText, DollarSign, RefreshCw, Save } from "lucide-react";
 import { TransactionChart, ChartLine } from "@/components/dashboard/charts/TransactionChart";
 import { getResourceColor, getResourceIcon } from "./utils";
-import { LessonViewer } from "@/components/dashboard/sections/LessonViewer";
+import { LessonViewer } from "@/components/dashboard/LessonViewer";
 import { ExtendedUser } from "@/hooks/useDataUser";
 import { Slider } from "@/components/ui/slider";
 import { ITransaction } from "@/lib/types";
@@ -230,8 +230,6 @@ export function BudgetingSection({ user, userLoading, onBack }: BudgetingSection
       });
     }
   }, [user?.data?.transactions]);
-
-  console.log(user?.data?.accounts)
 
   // Fetch chart data and section content
   useEffect(() => {
