@@ -45,8 +45,6 @@ export function DashboardContent({ selectedSection, onSelectSection }: Dashboard
          return <CreditCardRecommendations 
           user={user}
          />;
-    //   case "Stock Trading":
-    //     return <TradingChart />;
       default:
         if (!user.data) return null;
         console.log("dashboard")

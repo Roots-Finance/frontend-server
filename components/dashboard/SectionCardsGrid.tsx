@@ -32,15 +32,6 @@ export function SectionCardsGrid({ onSelectSection }: SectionCardsGridProps) {
       gridClass: 'col-span-1 md:col-span-1 lg:col-span-2'
     },
     {
-      id: 'Bonds' as Section,
-      title: 'Bonds',
-      description: 'Learn about fixed income securities',
-      content: 'Understand different types of bonds, yields, and their role in diversification.',
-      icon: BanIcon,
-      buttonText: 'Explore Bonds',
-      gridClass: 'col-span-1 md:col-span-1 lg:col-span-2'
-    },
-    {
       id: 'Stock Trading' as Section,
       title: 'Stock Trading',
       description: 'Learn advanced trading concepts',

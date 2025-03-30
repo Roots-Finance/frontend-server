@@ -116,13 +116,58 @@ export function InvestmentSection({ user, userLoading, onBack }: InvestmentSecti
   // Load chart data from user data
   useEffect(() => {
     const fetchChartData = async (): Promise<void> => {
+        console.log("0")
       if (!user || userLoading || isChartLoading || !user.data || isSettingsLoading || !categorySettings) return;
       try {
         setIsChartLoading(true);
+<<<<<<< HEAD
         // Generate projection data using the category settings
         const projectionData = minimizeBudgetProjection(user.data.transactions, categorySettings);
         // Calculate cumulative investment value using the utility function
         const enhancedData = calculateInvestmentValue(projectionData);
+=======
+        console.log("1")
+        // Generate projection data using the category settings
+        const projectionData = minimizeBudgetProjection(user.data.transactions, categorySettings);
+        console.log(projectionData)
+        // Calculate cumulative investment value using the utility function
+        const enhancedData = calculateInvestmentValue(projectionData);
+
+        let totalSavings = 0;
+for (const category in categorySettings) {
+    const amtPercentage = categorySettings[category];
+    const found = user.data.transactions.filter(t => t.category === category);
+    const total = found.reduce((acc, t) => acc + t.amount, 0);
+    totalSavings += total * (100 - amtPercentage) / 100;
+}
+
+// Sort transactions by date to find earliest and latest
+const sortedTransactions = [...user.data.transactions].sort((a, b) => 
+    new Date(a.date).getTime() - new Date(b.date).getTime()
+);
+
+const earliestDate = new Date(sortedTransactions[0].date);
+const latestDate = new Date(sortedTransactions[sortedTransactions.length - 1].date);
+
+// Calculate difference in months
+const monthDelta = 
+    (latestDate.getFullYear() - earliestDate.getFullYear()) * 12 + 
+    (latestDate.getMonth() - earliestDate.getMonth());
+
+// Calculate monthly savings (avoid division by zero)
+const monthlySavings = monthDelta > 0 ? totalSavings / monthDelta : totalSavings;
+
+console.log(monthlySavings);
+
+const contentResponse = await fetch(`/api/sections/Investment/spy-invest`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user_id: user.sub, monthlySavings }),
+  });
+
+        console.log(enhancedData)
+        
+>>>>>>> refs/remotes/origin/main
         setChartData(enhancedData);
         chartDataFetchedRef.current = true;
       } catch (err) {
