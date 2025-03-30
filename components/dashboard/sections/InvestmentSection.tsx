@@ -21,8 +21,6 @@ import InvestmentQuestionnairePopup from "./invest/QuestionnairePopup";
 // Import types
 import { 
   InvestmentSectionProps, 
-  ChartDataPoint, 
-  InvestmentProfile,
   PortfolioPreferences
 } from "./invest/types";
 import { ITransaction } from "@/lib/types";
@@ -371,5 +369,3 @@ export function InvestmentSection({
     </div>
   );
 }
-
-export default InvestmentSection;

@@ -1,64 +1,54 @@
 "use client"
 
-import { useState, useRef } from "react"
-import Image from "next/image"
+import { useState, useEffect, useRef } from "react"
 import { Star, ChevronDown, ChevronUp } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 
-// Sample data for credit cards
-const creditCards = [
-  {
-    id: 1,
-    bank: "Chase",
-    name: "Sapphire Preferred",
-    savings: 750,
-    description:
-      "The Chase Sapphire Preferred offers excellent travel rewards with a generous sign-up bonus and flexible redemption options. Earn 2x points on travel and dining worldwide, with no foreign transaction fees.",
-    image: "https://images-ext-1.discordapp.net/external/AlnHyjSJC1ZLXHow7abq9zmidCzklZohHA8iSvYiCKU/https/online.citi.com/CBOL/family/cards/card-art/costco-anywhere/costco-anywhere_247x156.png?format=webp&quality=lossless&width=1740&height=1088" // Replace with actual path
-  },
-  {
-    id: 2,
-    bank: "American Express",
-    name: "Gold Card",
-    savings: 600,
-    description:
-      "The American Express Gold Card is perfect for foodies, offering 4x points at restaurants and supermarkets. Enjoy monthly dining and Uber credits that help offset the annual fee.",
-    image: "https://images-ext-1.discordapp.net/external/AlnHyjSJC1ZLXHow7abq9zmidCzklZohHA8iSvYiCKU/https/online.citi.com/CBOL/family/cards/card-art/costco-anywhere/costco-anywhere_247x156.png?format=webp&quality=lossless&width=1740&height=1088" // Replace with actual path
-  },
-  {
-    id: 3,
-    bank: "Capital One",
-    name: "Venture X",
-    savings: 800,
-    description:
-      "The Capital One Venture X provides premium travel benefits at a reasonable price point. Enjoy airport lounge access, annual travel credits, and 10x miles on hotels and rental cars booked through Capital One Travel.",
-    image: "https://www.penfed.org/content/dam/penfed/en/products/credit-cards/cards/platinum-rewards.webp" // Replace with actual path
-  },
-  {
-    id: 4,
-    bank: "Citi",
-    name: "Double Cash",
-    savings: 400,
-    description:
-      "The Citi Double Cash card offers straightforward cash back with no annual fee. Earn effectively 2% on every purchase—1% when you buy and 1% when you pay your bill.",
-    image: "/credit-cards/citi-double-cash.png" // Replace with actual path
-  },
-  {
-    id: 5,
-    bank: "Discover",
-    name: "It Cash Back",
-    savings: 350,
-    description:
-      "The Discover it Cash Back features rotating 5% cash back categories each quarter and matches all the cash back you earn in your first year. Perfect for maximizing rewards in different spending categories.",
-    image: "/credit-cards/discover-it.png" // Replace with actual path
-  },
-]
-
-export default function CreditCardRecommendations() {
+export default function CreditCardRecommendations({ user }) {
   const [activeIndex, setActiveIndex] = useState(0)
-  const containerRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef(null)
+  const [creditCards, setCreditCards] = useState([])
   
+  // Extract the userId from the user object
+  const userId = user?.sub || user?.id || user?.userId
+  
+  useEffect(() => {
+    const fetchCards = async () => {
+      try {
+        // Only fetch if we have a userId
+        if (!userId) {
+          console.warn("No user ID available to fetch credit cards")
+          return
+        }
+        
+        const response = await fetch(`/api/sections/Cards/cards?userId=${encodeURIComponent(userId)}`)
+        if (response.ok) {
+          const data = await response.json()
+          setCreditCards(data)
+        } else {
+          console.error("Error fetching credit cards:", response.statusText)
+        }
+      } catch (error) {
+        console.error("Error fetching credit cards:", error)
+      }
+    }
+    
+    fetchCards()
+  }, [userId])
+
+  // Fix the useRef with useEffect for initial scrolling
+  useEffect(() => {
+    setTimeout(() => {
+      const initialCard = document.querySelector('[data-card-index="0"]')
+      if (initialCard) {
+        initialCard.scrollIntoView({
+          block: 'center'
+        })
+      }
+    }, 100)
+  }, [])
+
   const handlePrevious = () => {
     if (activeIndex > 0) {
       setActiveIndex(activeIndex - 1)
@@ -93,17 +83,18 @@ export default function CreditCardRecommendations() {
     }
   }
 
-  // Scroll the initial active card into view when component mounts
-  useRef(() => {
-    setTimeout(() => {
-      const initialCard = document.querySelector('[data-card-index="0"]')
-      if (initialCard) {
-        initialCard.scrollIntoView({
-          block: 'center'
-        })
-      }
-    }, 100)
-  }, [])
+  // If no credit cards have been loaded yet, show a loading state
+  if (creditCards.length === 0) {
+    return (
+      <div className="w-full max-w-5xl mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold mb-8">Recommended Credit Cards For You</h1>
+        <div className="flex items-center justify-center p-12">
+          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+          <span className="ml-3">Loading recommendations...</span>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="w-full max-w-5xl mx-auto px-4 py-8">
@@ -169,8 +160,8 @@ export default function CreditCardRecommendations() {
                       "transition-all duration-300"
                     )}>
                       <img
-                        src={card.image}
-                        alt={`${card.bank} ${card.name} card`}
+                        src={card.image || card.image_url}
+                        alt={`${card.bank} ${card.name || card.card} card`}
                         className="max-width-full max-h-full object-contain"
                         style={{
                           maxHeight: isActive ? '180px' : '60px'
@@ -191,11 +182,11 @@ export default function CreditCardRecommendations() {
                           "font-semibold transition-all",
                           isActive ? "text-xl mb-3" : "text-lg mb-1"
                         )}>
-                          {card.bank} {card.name}
+                          {card.bank} {card.name || card.card}
                         </h2>
                         
                         <div className="flex items-center text-sm text-emerald-600 font-medium">
-                          <span>Save up to ${card.savings}/year</span>
+                          <span>Save up to {card.savings}</span>
                           <Star className="h-4 w-4 ml-1 fill-current text-yellow-400" />
                         </div>
 
@@ -204,10 +195,17 @@ export default function CreditCardRecommendations() {
                           "transition-all duration-300",
                           isActive ? "max-h-40 mt-4 opacity-100" : "max-h-0 opacity-0"
                         )}>
-                          <p className="text-muted-foreground text-sm leading-relaxed">{card.description}</p>
-                          <button className="mt-4 px-4 py-2 bg-primary text-primary-foreground text-sm rounded-md hover:bg-primary/90 transition-colors shadow-sm hover:shadow-md">
+                          <p className="text-muted-foreground text-sm leading-relaxed">
+                            {card.description || `Apply for the ${card.bank} ${card.name || card.card} card and start earning rewards today.`}
+                          </p>
+                          <a 
+                            href={card.url || "#"} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="mt-4 inline-block px-4 py-2 bg-primary text-primary-foreground text-sm rounded-md hover:bg-primary/90 transition-colors shadow-sm hover:shadow-md"
+                          >
                             Apply Now
-                          </button>
+                          </a>
                         </div>
                       </div>
                     </div>

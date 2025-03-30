@@ -14,10 +14,7 @@ export interface PortfolioDataProps {
   [key: string]: number;
 }
 
-export interface ChartDataPoint {
-  date: string;
-  value: number;
-}
+
 
 export interface PortfolioPieChartProps {
   data: PortfolioDataProps;

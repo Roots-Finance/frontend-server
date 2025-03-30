@@ -199,6 +199,31 @@ export class DBLib {
     return data.data;
   }
 
+   /**
+   * Gets user budget by oauth_sub
+   * @param oauthSub OAuth subject identifier
+   * @returns Promise with API response containing user budget data
+   */
+   async getRecommendedCards(oauthSub: string): Promise<CategoryData | null> {
+    if (!this.baseUrl) {
+      throw new Error("Backend URL is not configured");
+    }
+
+    const response = await fetch(`${this.baseUrl}api/user/${oauthSub}/cards`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+    console.log("here")
+    console.log(`${this.baseUrl}api/user/${oauthSub}/cards`)
+    const data = (await response.json()) as DBResponse<CategoryData>;
+
+    return data.data;
+  }
+
+  
+
   /**
    * Updates user budget
    * @param oauthSub OAuth subject identifier

@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Loader2 } from "lucide-react";
-import { PortfolioAllocationProps, PortfolioDataProps, AIPortfolioResponse } from './types';
+import { PortfolioAllocationProps, PortfolioDataProps } from './types';
 import PortfolioPieChart from './PortfolioPieChart';
 import PortfolioControls from './PortfolioControls';
 
@@ -62,7 +62,7 @@ export const PortfolioAllocationManager = ({ user, isLoading }: PortfolioAllocat
       const response = await fetch(`/api/user/${user.sub}/ai-portfolio`);
       if (!response.ok) throw new Error(`Failed to diversify portfolio: ${response.status}`);
       
-      const result = await response.json() as AIPortfolioResponse;
+      const result = await response.json() as any;
       
       if (result.status === 1 && result.data) {
         // Remove any non-allocation fields like 'reasoning'
