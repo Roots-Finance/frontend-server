@@ -5,8 +5,12 @@ import { TransactionChart } from "@/components/dashboard/charts/TransactionChart
 import { SectionCardsGrid } from "@/components/dashboard/SectionCardsGrid";
 import { Section } from "@/components/dashboard/types";
 import { BudgetingSection } from "@/components/dashboard/sections/BudgetingSection";
+import CreditCardRecommendations from "../cards/CreditCardRecommendations";
 // import { getChartData } from "@/lib/data/transactions"
 import { useDataUser } from "@/hooks/useDataUser";
+import InvestmentQuestionnaireTrigger from "./InvestmentQuestionnairePopup";
+import InvestmentSection from "./sections/InvestmentSection";
+
 
 interface DashboardContentProps {
   selectedSection: Section;
@@ -24,6 +28,7 @@ export function DashboardContent({ selectedSection, onSelectSection }: Dashboard
   const renderChart = () => {
     switch (selectedSection) {
       case "Budgeting":
+        console.log("budget")
         return (
           <BudgetingSection
             user={user}
@@ -31,14 +36,15 @@ export function DashboardContent({ selectedSection, onSelectSection }: Dashboard
             onBack={() => onSelectSection(null)}
           />
         );
-    //   case "Stock Investments":
-    //     return <InvestmentChart />;
-    //   case "Bonds":
-    //     return <BondsChart />;
+       case "Stock Investments":
+         return <InvestmentSection/>;
+       case "Cards":
+         return <CreditCardRecommendations />;
     //   case "Stock Trading":
     //     return <TradingChart />;
       default:
         if (!user.data) return null;
+        console.log("dashboard")
         return <TransactionChart data={user.data?.transactions}/>;
     }
   };
@@ -47,6 +53,7 @@ export function DashboardContent({ selectedSection, onSelectSection }: Dashboard
     return (
       <>
         <div className="col-span-4">{renderChart()}</div>
+
       </>
     );
   }
@@ -58,6 +65,7 @@ export function DashboardContent({ selectedSection, onSelectSection }: Dashboard
       </div>
       <div className="col-span-4">
         <SectionCardsGrid onSelectSection={onSelectSection} />
+        <InvestmentQuestionnaireTrigger></InvestmentQuestionnaireTrigger>
       </div>
     </>
   );

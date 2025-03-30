@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { DollarSign, Home, TrendingUp, BanIcon, BookOpen, ChevronRight } from "lucide-react";
+import { DollarSign, Home, TrendingUp, CreditCard, BookOpen, ChevronRight } from "lucide-react";
 import { Section } from "@/app/dashboard/page";
 
 interface SideNavProps {
@@ -46,9 +46,9 @@ export function SideNav({ selectedSection, onSelectSection, onExpand }: SideNavP
       icon: TrendingUp
     },
     {
-      id: "Bonds" as Section,
-      name: "Bonds",
-      icon: BanIcon
+      id: "Cards" as Section,
+      name: "Cards",
+      icon: CreditCard
     },
     {
       id: "Stock Trading" as Section,
