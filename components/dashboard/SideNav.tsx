@@ -50,11 +50,6 @@ export function SideNav({ selectedSection, onSelectSection, onExpand }: SideNavP
       name: "Cards",
       icon: CreditCard
     },
-    {
-      id: "Stock Trading" as Section,
-      name: "Trading",
-      icon: BookOpen
-    }
   ];
 
 

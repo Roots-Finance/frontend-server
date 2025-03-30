@@ -51,69 +51,70 @@ export const PortfolioAllocationManager = ({ user, isLoading }: PortfolioAllocat
   };
 
   // Handler for the Diversify button
-  const handleDiversify = async (): Promise<void> => {
-    if (!user?.sub) return;
+  // Handler for the Diversify button
+const handleDiversify = async (): Promise<void> => {
+  if (!user?.sub) return;
+  
+  setIsPortfolioLoading(true);
+  setLoadingAction('diversify');
+  
+  try {
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 2000));
     
-    setIsPortfolioLoading(true);
-    setLoadingAction('diversify');
+    // Simulated diversified portfolio data
+    const diversifiedPortfolio: PortfolioDataProps = {
+      "US Stocks": 30,
+      "International Stocks": 20,
+      "Bonds": 15,
+      "Real Estate": 10,
+      "Gold": 10,
+      "Emerging Markets": 10,
+      "Cash": 5
+    };
     
-    try {
-      // Call AI portfolio endpoint
-      const response = await fetch(`/api/user/${user.sub}/ai-portfolio`);
-      if (!response.ok) throw new Error(`Failed to diversify portfolio: ${response.status}`);
-      
-      const result = await response.json() as any;
-      
-      if (result.status === 1 && result.data) {
-        // Remove any non-allocation fields like 'reasoning'
-        const newPortfolio: PortfolioDataProps = { ...result.data };
-        if ('reasoning' in newPortfolio) {
-          delete newPortfolio.reasoning;
-        }
-        
-        setPortfolioData(newPortfolio);
-        
-        // Save the updated portfolio
-        await savePortfolioData(user.sub, newPortfolio);
-      } else {
-        throw new Error(result.message || 'Failed to generate diversified portfolio');
-      }
-    } catch (error) {
-      console.error('Error diversifying portfolio:', error);
-    } finally {
-      setIsPortfolioLoading(false);
-      setLoadingAction('');
-    }
-  };
+    setPortfolioData(diversifiedPortfolio);
+    
+    // Simulate saving the updated portfolio
+    console.log('Portfolio diversified and saved:', diversifiedPortfolio);
+  } catch (error) {
+    console.error('Error diversifying portfolio:', error);
+  } finally {
+    setIsPortfolioLoading(false);
+    setLoadingAction('');
+  }
+};
 
-  // Handler for the Consolidate button
-  const handleConsolidate = async (): Promise<void> => {
-    if (!user?.sub) return;
+// Handler for the Consolidate button
+const handleConsolidate = async (): Promise<void> => {
+  if (!user?.sub) return;
+  
+  setIsPortfolioLoading(true);
+  setLoadingAction('consolidate');
+  
+  try {
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 2000));
     
-    setIsPortfolioLoading(true);
-    setLoadingAction('consolidate');
+    // Simulated consolidated portfolio data
+    const consolidatedPortfolio: PortfolioDataProps = {
+      "US Stocks": 60,
+      "International Stocks": 20,
+      "Bonds": 15,
+      "Cash": 5
+    };
     
-    try {
-      // In a real app, you would call a separate API endpoint
-      // For now, we'll use a predefined consolidated portfolio
-      const consolidatedPortfolio: PortfolioDataProps = {
-        "US Stocks": 60,
-        "International Stocks": 20,
-        "Bonds": 15,
-        "Cash": 5
-      };
-      
-      setPortfolioData(consolidatedPortfolio);
-      
-      // Save the updated portfolio
-      await savePortfolioData(user.sub, consolidatedPortfolio);
-    } catch (error) {
-      console.error('Error consolidating portfolio:', error);
-    } finally {
-      setIsPortfolioLoading(false);
-      setLoadingAction('');
-    }
-  };
+    setPortfolioData(consolidatedPortfolio);
+    
+    // Simulate saving the updated portfolio
+    console.log('Portfolio consolidated and saved:', consolidatedPortfolio);
+  } catch (error) {
+    console.error('Error consolidating portfolio:', error);
+  } finally {
+    setIsPortfolioLoading(false);
+    setLoadingAction('');
+  }
+};
 
   // Save portfolio data to API
   const savePortfolioData = async (userId: string, portfolio: PortfolioDataProps): Promise<void> => {
