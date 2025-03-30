@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { Transaction, AccountBase } from "plaid";
 import { ConnectionType, DBUser, IAccount, ITransaction } from "@/lib/types";
 import { detConnType } from "@/lib/utils";
-
+import { calculateRunningTotal, sortTransactionsChronologically } from "@/lib/dataProcessing";
 
 interface RawPlaidData {
   accounts: AccountBase[];
@@ -49,8 +49,112 @@ export interface DataUserReturn extends Omit<ReturnType<typeof useUser>, "user">
   user?: ExtendedUser;
 }
 
-// Response interfaces for better typing
+/**
+ * Generates a random mask (2-4 digits) when one is not provided
+ */
+const generateRandomMask = (): string => {
+  const length = Math.floor(Math.random() * 3) + 2; // Random length between 2-4
+  let mask = '';
+  for (let i = 0; i < length; i++) {
+    mask += Math.floor(Math.random() * 10).toString();
+  }
+  return mask;
+};
 
+/**
+ * Fetches user's connection type from the API
+ */
+const fetchConnectionType = async (userId: string): Promise<ConnectionType> => {
+  try {
+    const encodedUserId = encodeURIComponent(userId);
+    const response = await fetch(`/api/user?userId=${encodedUserId}`);
+
+    if (response.status === 404) {
+      // User not found, create user
+      return ConnectionType.NONE;
+    }
+    
+    if (!response.ok) {
+      throw new Error(`Failed to get connection type: ${response.status}`);
+    }
+    
+    const data = await response.json() as DBUser;
+    return detConnType(data);
+  } catch (error) {
+    console.error("Error checking connection type:", error);
+    return ConnectionType.NONE;
+  }
+};
+
+/**
+ * Creates a new user in the database
+ */
+const createUser = async (userId: string, firstName: string, lastName: string): Promise<void> => {
+  if (!firstName || !lastName) {
+    console.error("Missing user name information");
+    return;
+  }
+  
+  try {
+    const response = await fetch('/api/user/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        oauth_sub: userId,
+        first_name: firstName,
+        last_name: lastName
+      }),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Error creating user: ${response.status}`);
+    }
+    
+    console.log("New user created successfully");
+  } catch (error) {
+    console.error("Error creating user:", error);
+  }
+};
+
+/**
+ * Processes transaction data into the standardized format
+ */
+const processTransactions = (
+  transactions: Transaction[],
+  isPlaid: boolean = true
+): ITransaction[] => {
+  // Map transactions to ITransaction format
+  const mappedTransactions: ITransaction[] = transactions.map((transaction) => ({
+    amount: transaction.amount,
+    account_id: transaction.account_id,
+    transaction_id: transaction.transaction_id,
+    date: transaction.date,
+    merchant_name: transaction.merchant_name ?? "UNKNOWN",
+    category: transaction.personal_finance_category?.primary ?? "UNKNOWN",
+    name: transaction.name,
+    pending: transaction.pending,
+    overallTotal: 0, // Placeholder for overall total
+    isCredit: false
+  }));
+
+  // Process transactions through our utility functions
+  const sortedTransactions = sortTransactionsChronologically(mappedTransactions);
+  return calculateRunningTotal(sortedTransactions);
+};
+
+/**
+ * Processes account data into the standardized format
+ */
+const processAccounts = (accounts: AccountBase[]): IAccount[] => {
+  return accounts.map((account) => ({
+    account_id: account.account_id,
+    balance: account.balances.current || NaN,
+    mask: account.mask || generateRandomMask(),
+    name: account.name
+  }));
+};
+
+// Main hook that combines Auth0 with financial data
 export function useDataUser(): DataUserReturn {
   const auth0 = useUser();
   const [connectionType, setConnectionType] = useState<ConnectionType>(ConnectionType.NONE);
@@ -58,92 +162,13 @@ export function useDataUser(): DataUserReturn {
   const [dataLoading, setDataLoading] = useState<boolean>(true);
   const [dataError, setDataError] = useState<Error | null>(null);
 
-  // Function to check user's connection type
-  const checkConnectionType = async (userId: string): Promise<ConnectionType> => {
+  /**
+   * Fetches Plaid data for the user
+   */
+  const fetchPlaidData = async (userId: string): Promise<Data | undefined> => {
     try {
-      const encodedUserId = encodeURIComponent(userId);
-      const response = await fetch(`/api/user?userId=${encodedUserId}`);
-
-      if (response.status === 404) {
-        // User not found, create user
-        await createUser(userId);
-        return ConnectionType.NONE;
-      }
-      
-      if (!response.ok) {
-        throw new Error(`Failed to get connection type: ${response.status}`);
-      }
-      
-      const data = await response.json() as DBUser;
-   
-      return detConnType(data);
-
-    } catch (error) {
-      console.error("Error checking connection type:", error);
-      return ConnectionType.NONE;
-    }
-  };
-
-  // Create a new user when they don't exist yet
-  const createUser = async (userId: string): Promise<void> => {
-    if (!auth0.user?.given_name || !auth0.user?.family_name) {
-      console.error("Missing user name information");
-      return;
-    }
-    
-    try {
-      const response = await fetch('/api/user/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          oauth_sub: userId,
-          first_name: auth0.user.given_name,
-          last_name: auth0.user.family_name
-        }),
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Error creating user: ${response.status}`);
-      }
-      
-      console.log("New user created successfully");
-    } catch (error) {
-      console.error("Error creating user:", error);
-    }
-  };
-
-  // Generate a random mask (2-4 digits) when one is not provided
-  const generateRandomMask = (): string => {
-    const length = Math.floor(Math.random() * 3) + 2; // Random length between 2-4
-    let mask = '';
-    for (let i = 0; i < length; i++) {
-      mask += Math.floor(Math.random() * 10).toString();
-    }
-    return mask;
-  };
-
-  // Function to fetch Plaid data
-  const fetchPlaidData = async (): Promise<void> => {
-    if (!auth0.user?.sub) return;
-
-    setDataLoading(true);
-    setDataError(null);
-
-    try {
-      // First check connection type
-      const userConnectionType = await checkConnectionType(auth0.user.sub);
-      setConnectionType(userConnectionType);
-      
-      // If not using Plaid, exit early
-      if (userConnectionType !== ConnectionType.PLAID) {
-        setData(undefined);
-        setDataLoading(false);
-        return;
-      }
-
-      // Continue with Plaid connection flow
       // 1. Get Plaid status to check if connected and get item ID
-      const encodedUserId = encodeURIComponent(auth0.user.sub);
+      const encodedUserId = encodeURIComponent(userId);
       const statusResponse = await fetch(`/api/plaid/status?userId=${encodedUserId}`);
       
       if (!statusResponse.ok) {
@@ -154,9 +179,7 @@ export function useDataUser(): DataUserReturn {
       
       if (!statusData.hasPlaid || !statusData.isValid) {
         // User doesn't have valid Plaid connection
-        setData(undefined);
-        setDataLoading(false);
-        return;
+        return undefined;
       }
       
       // 2. Get access token for the item
@@ -164,7 +187,7 @@ export function useDataUser(): DataUserReturn {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: auth0.user.sub,
+          userId: userId,
           itemId: statusData.itemId,
         }),
       });
@@ -187,121 +210,96 @@ export function useDataUser(): DataUserReturn {
       }
       
       const rawData: RawPlaidData = await transactionsResponse.json();
-
-      // 4. Map transactions to ITransaction format
-      const transactions: ITransaction[] = rawData.transactions.map((transaction) => ({
-        amount: transaction.amount,
-        account_id: transaction.account_id,
-        transaction_id: transaction.transaction_id,
-        date: transaction.date,
-        merchant_name: transaction.merchant_name ?? "UNKNOWN",
-        category: transaction.personal_finance_category?.primary ?? "UNKNOWN",
-        name: transaction.name,
-        pending: transaction.pending,
-        overallTotal: 0, // Placeholder for overall total
-        isCredit: false
-      }));
-
-      let overallTotal = 0;
-      for (const transaction of transactions) {
-        // Calculate overall balance for each transaction
-        transaction.overallTotal = overallTotal -= transaction.amount;
-      }
-
-      // Extract accounts data based on IAccount interface
-      const accounts: IAccount[] = rawData.accounts.map((account) => ({
-        account_id: account.account_id,
-        balance: account.balances.current || NaN,
-        mask: account.mask || generateRandomMask(),
-        name: account.name
-      }));
-
-      setData({ accounts, transactions });
+      
+      // Process the data
+      const transactions = processTransactions(rawData.transactions, true);
+      const accounts = processAccounts(rawData.accounts);
+      
+      return { accounts, transactions };
     } catch (error) {
-      console.error("Error fetching Plaid data:", error);
-      setDataError(error instanceof Error ? error : new Error("Unknown error"));
-    } finally {
-      setDataLoading(false);
+      throw error;
     }
   };
 
-  // Function to handle NESSI connection using the new API endpoints
-  const handleNessiConnection = async (): Promise<void> => {
-    if (!auth0.user?.sub) return;
-    
-    setDataLoading(true);
-    setDataError(null);
-    
+  /**
+   * Fetches NESSI data for the user
+   */
+  const fetchNessiData = async (userId: string): Promise<Data | undefined> => {
     try {
-      // 1. Get user accounts from our new Nessi API endpoint
-      const encodedUserId = encodeURIComponent(auth0.user.sub);
+      // 1. Get user accounts from Nessi API endpoint
+      const encodedUserId = encodeURIComponent(userId);
       const accountsResponse = await fetch(`/api/nessi/get-accounts?userId=${encodedUserId}`);
       
       if (!accountsResponse.ok) {
         throw new Error(`Failed to get NESSI accounts: ${accountsResponse.status}`);
       }
       
-      const accountsData = await accountsResponse.json() as IAccount[];
-      const accounts = accountsData;
+      const accounts = await accountsResponse.json() as IAccount[];
       
       if (!accounts || accounts.length === 0) {
         console.warn("No NESSI accounts found for user");
-        setData({ accounts: [], transactions: [] });
-        setDataLoading(false);
-        return;
+        return { accounts: [], transactions: [] };
       }
       
-
-      const allTransactions = await fetch(`/api/nessi/get-transactions?userId=${encodedUserId}`);
+      // 2. Get transactions
+      const transactionsResponse = await fetch(`/api/nessi/get-transactions?userId=${encodedUserId}`);
  
-      if (!allTransactions.ok) {
-        console.warn(`Failed to get transactions: ${allTransactions.status}`);
-        setData({ accounts: [], transactions: [] });
+      if (!transactionsResponse.ok) {
+        console.warn(`Failed to get transactions: ${transactionsResponse.status}`);
+        return { accounts, transactions: [] };
       }
       
-      const transactionData = await allTransactions.json() as ITransaction[];
-
-      // The transactions should already be sorted and have the overallTotal calculated by our API
-      // But we'll double-check to make sure they're properly processed
+      const transactions = await transactionsResponse.json() as ITransaction[];
       
-      // Sort transactions by date (newest first) if needed
-      transactionData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      // Process transactions through our utility functions
+      const processedTransactions = calculateRunningTotal(
+        sortTransactionsChronologically(transactions)
+      );
       
-      // Calculate overall balance for each transaction if needed
-      if (transactionData.length > 0 && transactionData[0].overallTotal === 0) {
-        let overallTotal = 0;
-        for (const transaction of transactionData) {
-          transaction.overallTotal = overallTotal -= transaction.amount;
-        }
-      }
-      
-      setData({
+      return {
         accounts,
-        transactions: transactionData
-      });
+        transactions: processedTransactions
+      };
     } catch (error) {
-      console.error("Error fetching NESSI data:", error);
-      setDataError(error instanceof Error ? error : new Error("Unknown error fetching NESSI data"));
-      setData(undefined);
-    } finally {
-      setDataLoading(false);
+      throw error;
     }
   };
 
+  /**
+   * Main function to refresh user data based on connection type
+   */
   const refreshData = async (): Promise<void> => {
     if (!auth0.user?.sub) return;
 
-    console.log('REFRESH DATA')
+    console.log('REFRESH DATA');
+    setDataLoading(true);
+    setDataError(null);
     
-    // Check connection type first
-    const userConnectionType = await checkConnectionType(auth0.user.sub);
-    setConnectionType(userConnectionType);
-  
-    if (userConnectionType === ConnectionType.PLAID) {
-      await fetchPlaidData();
-    } else if (userConnectionType === ConnectionType.NESSI) {
-      await handleNessiConnection();
-    } else {
+    try {
+      // First check/create user and determine connection type
+      const userConnectionType = await fetchConnectionType(auth0.user.sub);
+      
+      // Create user if needed
+      if (userConnectionType === ConnectionType.NONE && auth0.user?.given_name && auth0.user?.family_name) {
+        await createUser(auth0.user.sub, auth0.user.given_name, auth0.user.family_name);
+      }
+      
+      setConnectionType(userConnectionType);
+      
+      // Fetch data based on connection type
+      let userData: Data | undefined;
+      
+      if (userConnectionType === ConnectionType.PLAID) {
+        userData = await fetchPlaidData(auth0.user.sub);
+      } else if (userConnectionType === ConnectionType.NESSI) {
+        userData = await fetchNessiData(auth0.user.sub);
+      }
+      
+      setData(userData);
+    } catch (error) {
+      console.error("Error refreshing data:", error);
+      setDataError(error instanceof Error ? error : new Error("Unknown error"));
+    } finally {
       setDataLoading(false);
     }
   };

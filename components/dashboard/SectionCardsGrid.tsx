@@ -3,7 +3,8 @@
 
 import { DollarSign, TrendingUp, BanIcon, BookOpen } from "lucide-react";
 import { SectionCard } from "@/components/dashboard/SectionCard";
-import { Section } from "@/app/dashboard/page";
+import { Section } from "./types";
+
 
 interface SectionCardsGridProps {
   onSelectSection: (section: Section) => void;

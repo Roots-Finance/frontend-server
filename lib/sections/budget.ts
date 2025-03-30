@@ -16,7 +16,7 @@ export interface ChartConfig {
 export function minimizeBudgetProjection(
   transactions: ITransaction[],
   chartConfig: ChartConfig = {}
-): ITransaction[] {
+): (ITransaction & {minimizedTotal: number})[] {
   let minimizedTotal = 0;
   const ret = transactions.map((transaction) => {
     const category = transaction.category;

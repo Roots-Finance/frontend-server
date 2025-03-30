@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Area, AreaChart, CartesianGrid, Line, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { getTransactionColor } from "../sections/utils";
 import { ITransaction } from "@/lib/types";
+import { hasDataChanged } from "@/lib/dataProcessing";
 
 // Define types for chart lines
 export interface ChartLine {
@@ -19,6 +20,7 @@ export interface ChartLine {
 
 export interface TransactionChartProps {
   data?: ITransaction[];
+  useDefaultLine?: boolean;
   title?: string;
   description?: string;
   lines?: ChartLine[];
@@ -27,6 +29,7 @@ export interface TransactionChartProps {
 
 export function TransactionChart({
   data = [],
+  useDefaultLine = true,
   title = "Transaction History",
   description = "Your balance over time",
   lines = [],
@@ -52,63 +55,6 @@ export function TransactionChart({
   // Keep a reference to previous data for comparison
   const prevDataRef = useRef<ITransaction[]>([]);
 
-  // Optimized hasDataChanged function with string comparison
-  const hasDataChanged = (prevData: ITransaction[], newData: ITransaction[]) => {
-    if (!prevData || !newData) return true;
-    if (prevData.length !== newData.length) return true;
-    
-    // Check first and last elements via stringify
-    if (prevData.length > 0) {
-      const firstPrevStr = JSON.stringify({
-        date: prevData[0].date,
-        total: prevData[0].overallTotal
-      });
-      const firstNewStr = JSON.stringify({
-        date: newData[0].date,
-        total: newData[0].overallTotal
-      });
-      
-      const lastPrevStr = JSON.stringify({
-        date: prevData[prevData.length - 1].date,
-        total: prevData[prevData.length - 1].overallTotal
-      });
-      const lastNewStr = JSON.stringify({
-        date: newData[newData.length - 1].date,
-        total: newData[newData.length - 1].overallTotal
-      });
-      
-      if (firstPrevStr !== firstNewStr || lastPrevStr !== lastNewStr) {
-        return true;
-      }
-    }
-    
-    // Sample a few elements in the middle for larger datasets
-    if (newData.length > 10) {
-      const sampleIndices = [
-        Math.floor(newData.length * 0.25),
-        Math.floor(newData.length * 0.5),
-        Math.floor(newData.length * 0.75)
-      ];
-      
-      for (const idx of sampleIndices) {
-        const prevItemStr = JSON.stringify({
-          date: prevData[idx].date,
-          total: prevData[idx].overallTotal
-        });
-        const newItemStr = JSON.stringify({
-          date: newData[idx].date,
-          total: newData[idx].overallTotal
-        });
-        
-        if (prevItemStr !== newItemStr) {
-          return true;
-        }
-      }
-    }
-    
-    return false;
-  };
-
   // Default line for balance
   const defaultLine: ChartLine = {
     dataKey: "overallTotal",
@@ -120,7 +66,7 @@ export function TransactionChart({
   };
 
   // Combine default line with custom lines
-  const allLines = [defaultLine, ...lines];
+  const allLines = useDefaultLine ? [defaultLine, ...lines] : lines;
 
   // Calculate visible data based on zoom level and center
   const calculateVisibleData = (data: ITransaction[], zoomLevel: number, zoomCenter: number) => {
@@ -154,8 +100,9 @@ export function TransactionChart({
 
   // Use useMemo to calculate visible data only when necessary
   const visibleData = useMemo(() => {
-    // Check if data has meaningfully changed
+    // Check if data has meaningfully changed using imported utility
     const dataChanged = hasDataChanged(prevDataRef.current, data);
+    console.log(dataChanged)
     const zoomChanged = 
       prevCalcInputsRef.current.zoomLevel !== zoomLevel || 
       prevCalcInputsRef.current.zoomCenter !== zoomCenter;
@@ -169,12 +116,19 @@ export function TransactionChart({
         zoomCenter 
       };
       
-      // Recalculate visible data
-      return calculateVisibleData(data, zoomLevel, zoomCenter);
+      // Sort data chronologically by date
+      const sortedData = [...data].sort((a, b) => {
+        const dateA = new Date(a.date);
+        const dateB = new Date(b.date);
+        return dateA.getTime() - dateB.getTime();
+      });
+      
+      // Recalculate visible data with sorted array
+      return calculateVisibleData(sortedData, zoomLevel, zoomCenter);
     }
     
     // Use previously calculated data if nothing has changed
-    return calculateVisibleData(data, zoomLevel, zoomCenter);
+    return calculateVisibleData(prevDataRef.current, zoomLevel, zoomCenter);
   }, [data, zoomLevel, zoomCenter]);
 
   // Setup wheel event listeners for zooming
