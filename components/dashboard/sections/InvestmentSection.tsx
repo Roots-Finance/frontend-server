@@ -13,6 +13,7 @@ import { Toaster } from "@/components/ui/sonner";
 
 // Import components
 import PortfolioAllocationManager from "./invest/PortfolioAllocationManager";
+import PortfolioComparison from "./invest/PortfolioComparison";
 import InvestmentChart from "./invest/InvestmentChart";
 import LessonsSection from "./invest/LessonsSection";
 import ResourcesSection from "./invest/ResourcesSection";
@@ -54,6 +55,9 @@ export function InvestmentSection({ user, userLoading, onBack }: InvestmentSecti
   // Category settings state for chart data processing
   const [categorySettings, setCategorySettings] = useState<CategoryData | null>(null);
   const [isSettingsLoading, setIsSettingsLoading] = useState<boolean>(false);
+
+  // Monthly payment state for SPI portfolio
+  const [monthlyPayment, setMonthlyPayment] = useState<number>(500);
 
   // AI Portfolio state
   const [showAIPortfolio, setShowAIPortfolio] = useState<boolean>(false);
@@ -116,58 +120,13 @@ export function InvestmentSection({ user, userLoading, onBack }: InvestmentSecti
   // Load chart data from user data
   useEffect(() => {
     const fetchChartData = async (): Promise<void> => {
-        console.log("0")
       if (!user || userLoading || isChartLoading || !user.data || isSettingsLoading || !categorySettings) return;
       try {
         setIsChartLoading(true);
-<<<<<<< HEAD
         // Generate projection data using the category settings
         const projectionData = minimizeBudgetProjection(user.data.transactions, categorySettings);
         // Calculate cumulative investment value using the utility function
         const enhancedData = calculateInvestmentValue(projectionData);
-=======
-        console.log("1")
-        // Generate projection data using the category settings
-        const projectionData = minimizeBudgetProjection(user.data.transactions, categorySettings);
-        console.log(projectionData)
-        // Calculate cumulative investment value using the utility function
-        const enhancedData = calculateInvestmentValue(projectionData);
-
-        let totalSavings = 0;
-for (const category in categorySettings) {
-    const amtPercentage = categorySettings[category];
-    const found = user.data.transactions.filter(t => t.category === category);
-    const total = found.reduce((acc, t) => acc + t.amount, 0);
-    totalSavings += total * (100 - amtPercentage) / 100;
-}
-
-// Sort transactions by date to find earliest and latest
-const sortedTransactions = [...user.data.transactions].sort((a, b) => 
-    new Date(a.date).getTime() - new Date(b.date).getTime()
-);
-
-const earliestDate = new Date(sortedTransactions[0].date);
-const latestDate = new Date(sortedTransactions[sortedTransactions.length - 1].date);
-
-// Calculate difference in months
-const monthDelta = 
-    (latestDate.getFullYear() - earliestDate.getFullYear()) * 12 + 
-    (latestDate.getMonth() - earliestDate.getMonth());
-
-// Calculate monthly savings (avoid division by zero)
-const monthlySavings = monthDelta > 0 ? totalSavings / monthDelta : totalSavings;
-
-console.log(monthlySavings);
-
-const contentResponse = await fetch(`/api/sections/Investment/spy-invest`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ user_id: user.sub, monthlySavings }),
-  });
-
-        console.log(enhancedData)
-        
->>>>>>> refs/remotes/origin/main
         setChartData(enhancedData);
         chartDataFetchedRef.current = true;
       } catch (err) {
@@ -181,6 +140,27 @@ const contentResponse = await fetch(`/api/sections/Investment/spy-invest`, {
       fetchChartData();
     }
   }, [user, userLoading, isChartLoading, isSettingsLoading, categorySettings]);
+
+  // Calculate monthly payment from user's transactions
+  useEffect(() => {
+    if (!user || !user.data || !user.data.transactions) return;
+    
+    // Calculate average monthly savings as the average of positive transactions over the last 3 months
+    const now = new Date();
+    const threeMonthsAgo = new Date();
+    threeMonthsAgo.setMonth(now.getMonth() - 3);
+    
+    const recentSavings = user.data.transactions
+      .filter(tx => {
+        const txDate = new Date(tx.date);
+        return txDate >= threeMonthsAgo && tx.amount > 0;
+      })
+      .reduce((sum, tx) => sum + tx.amount, 0);
+    
+    // Calculate average monthly savings (at least $100)
+    const avgMonthlySavings = Math.max(Math.round(recentSavings / 3), 100);
+    setMonthlyPayment(avgMonthlySavings);
+  }, [user]);
 
   // Fetch lessons content
   useEffect(() => {
@@ -315,7 +295,6 @@ const contentResponse = await fetch(`/api/sections/Investment/spy-invest`, {
       let baseValue: number | undefined = matchingTx ? matchingTx.totalValue : undefined;
       if (baseValue === undefined) {
         const previousTxs = chartData.filter(tx => tx.date < date1);
-        console.log(previousTxs)
         if (previousTxs.length > 0) {
           baseValue = previousTxs.sort((a, b) => (a.date > b.date ? -1 : 1))[0].totalValue;
         }
@@ -447,9 +426,14 @@ const contentResponse = await fetch(`/api/sections/Investment/spy-invest`, {
           </Card>
         )}
 
-        {/* Portfolio Allocation Manager */}
+       
+
+        {/* Portfolio Comparison */}
         {!isChartLoading && !chartError && (
-          <PortfolioAllocationManager user={user} isLoading={isChartLoading} />
+          <PortfolioComparison 
+            user={user}
+            monthlyPayment={monthlyPayment}
+          />
         )}
 
         {/* Investment Lessons & Resources Card */}

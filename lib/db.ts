@@ -376,7 +376,6 @@ export class DBLib {
       }),
     });
 
-    console.log(response)
     const data = (await response.json()) as DBResponse<PortfolioRecommendation>;
 
     return data.data;
@@ -387,7 +386,9 @@ export class DBLib {
       throw new Error("Backend URL is not configured");
     }
 
-    const response = await fetch(`${this.baseUrl}/api/user/${encodeURIComponent(oauth_sub)}/portfolio/spi`, {
+    console.log('fuck', monthly_savings)
+
+    const response = await fetch(`${this.baseUrl}/api/user/${encodeURIComponent(oauth_sub)}/spy_portfolio`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -397,6 +398,7 @@ export class DBLib {
       }),
     });
 
+    console.log(response)
     const data = (await response.json()) as DBResponse<PortfolioRecommendation>;
 
     return data.data;

@@ -4,10 +4,9 @@ import apiService from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
   const { userId, monthly_savings } = await request.json();
-
-  if (!userId) {
+  console.log(userId, monthly_savings)
+  if (!userId || !monthly_savings) {
     return NextResponse.json(
       { error: 'User ID is required' },
       { status: 400 }
@@ -18,7 +17,9 @@ export async function POST(request: NextRequest) {
     // In a real application, you would fetch the user's portfolio allocation
     // from your database using the userId
     
-    const response = await apiService.getSPIPortfolio(userId, monthly_savings);
+    const response = await apiService.getSPIPortfolio(userId, parseFloat(monthly_savings));
+
+    console.log(response)
 
 
     return NextResponse.json(response);
