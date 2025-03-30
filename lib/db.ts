@@ -243,6 +243,32 @@ export class DBLib {
   }
 
   /**
+ * Sends user portfolio data
+ * @param portfolioData Portfolio data to send
+ * @returns Promise with API response
+ */
+async sendUserPortfolio(oauthSub: string, portfolioData: any): Promise<any> {
+  if (!this.baseUrl) {
+    throw new Error("Backend URL is not configured");
+  }
+
+  const response = await fetch(`${this.baseUrl}/api/user/${encodeURIComponent(oauthSub)}/portfolio`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(portfolioData),
+  });
+
+  const data = await response.json() as DBResponse<any>;
+  
+  // Add statusCode to the response for internal tracking
+  data.statusCode = response.status;
+
+  return data.data;
+}
+
+  /**
    * Gets AI-generated financial lessons for a user
    * @param oauthSub OAuth subject identifier
    * @returns Promise with API response containing user lessons grouped by status

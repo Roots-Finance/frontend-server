@@ -2,8 +2,9 @@ import PortfolioAllocationManager from "../PortfolioAllocationManager";
 import { TransactionChart } from "../charts/TransactionChart";
 import { useState, useEffect } from "react";
 import InvestmentQuestionnairePopup from "../InvestmentQuestionnairePopup"; 
+import { apiService } from "@/lib/db";
 
-export default function InvestmentSection() {
+export default function InvestmentSection({user}) {
     // Simple state to manage form completion and popup visibility
     const [hasCompletedForm, setHasCompletedForm] = useState(false);
     const [isQuestionnaireOpen, setIsQuestionnaireOpen] = useState(false);
@@ -17,9 +18,12 @@ export default function InvestmentSection() {
     }, [hasCompletedForm]);
     
     const handleQuestionnaireComplete = (data) => {
+
         console.log('Investment questionnaire completed with data:', data);
         // In a real app, you would send this data to your API
+        apiService.sendUserPortfolio(user.sub, data)
         setHasCompletedForm(true);
+
         
         // You could save completion status to localStorage or your backend
         // localStorage.setItem('investmentFormCompleted', 'true');
