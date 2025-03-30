@@ -10,28 +10,35 @@ export interface InvestmentSectionProps {
   onBack: () => void;
 }
 
+
+// Interface for portfolio data
 export interface PortfolioDataProps {
   [key: string]: number;
 }
 
+// Props for the PortfolioAllocationManager component
+export interface PortfolioAllocationProps {
+  user: {
+    sub: string;
+    [key: string]: any;
+  } | null;
+  isLoading: boolean;
+  portfolioData?: PortfolioDataProps;
+}
 
-
+// Props for the PortfolioPieChart component
 export interface PortfolioPieChartProps {
   data: PortfolioDataProps;
   activeIndex: number | null;
   setActiveIndex: (index: number | null) => void;
 }
 
+// Props for the PortfolioControls component
 export interface PortfolioControlsProps {
-  onDiversify: () => void;
-  onConsolidate: () => void;
+  onDiversify: () => Promise<void>;
+  onConsolidate: () => Promise<void>;
   isLoading: boolean;
   loadingAction: string;
-}
-
-export interface PortfolioAllocationProps {
-  user: ExtendedUser | null;
-  isLoading: boolean;
 }
 
 export interface CustomTooltipProps {

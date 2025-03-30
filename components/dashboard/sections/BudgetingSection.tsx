@@ -329,6 +329,11 @@ export function BudgetingSection({ user, userLoading, onBack }: BudgetingSection
     if (!latest || date > latest) latest = date;
   }
 
+  // Calculate monthly savings if we have date range
+  const perMonthSaving = (earliest && latest) ? 
+    totalSavings / (((latest.getFullYear() - earliest.getFullYear()) * 12) + latest.getMonth() - earliest.getMonth() + 1) : 
+    0;
+
   // No transaction data - render a basic message  
   if (!user?.data?.transactions?.length) {
     return (
@@ -347,10 +352,7 @@ export function BudgetingSection({ user, userLoading, onBack }: BudgetingSection
     );
   }
 
-  // Calculate monthly savings if we have date range
-  const perMonthSaving = (earliest && latest) ? 
-    totalSavings / (((latest.getFullYear() - earliest.getFullYear()) * 12) + latest.getMonth() - earliest.getMonth() + 1) : 
-    0;
+
 
   return (
     <div className="space-y-6">

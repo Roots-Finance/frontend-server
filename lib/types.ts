@@ -2,7 +2,7 @@ export interface ITransaction {
   amount: number;
   account_id: string; // this is the bank account id.
   transaction_id: string;
-  date: string;
+  date: Date;
   merchant_name: string;
   category: string;
   name: string; // name of transaction, can be considered a description. IE: Uber #2832, merchant is Uber

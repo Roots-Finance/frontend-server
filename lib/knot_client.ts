@@ -1,5 +1,5 @@
 // lib/knot_client.ts
-'use client';
+
 
 import { EventEmitter } from 'events';
 import KnotapiJS from 'knotapi-js';

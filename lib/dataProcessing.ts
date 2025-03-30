@@ -67,14 +67,8 @@ export function hasDataChanged(prevData: ITransaction[], newData: ITransaction[]
   
   // Check first and last elements via stringify
   if (prevData.length > 0) {
-    const firstPrevStr = JSON.stringify({
-      date: prevData[0].date,
-      total: prevData[0].overallTotal
-    });
-    const firstNewStr = JSON.stringify({
-      date: newData[0].date,
-      total: newData[0].overallTotal
-    });
+    const firstPrevStr = JSON.stringify(prevData[0]);
+    const firstNewStr = JSON.stringify(newData[0]);
     
     const lastPrevStr = JSON.stringify(
         prevData[prevData.length - 1]

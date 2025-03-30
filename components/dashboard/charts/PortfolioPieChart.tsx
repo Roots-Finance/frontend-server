@@ -1,24 +1,24 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, Sector } from 'recharts';
+import { PortfolioDataProps } from '../sections/invest/types';
 
-export const PortfolioPieChart = () => {
-  // Dummy data in the format "assetName": "percentageAllocated"
-  const dummyData = {
-    "US Stocks": 45,
-    "International Stocks": 25,
-    "Bonds": 15,
-    "Real Estate": 10,
-    "Cash": 5
-  };
+interface PortfolioPieChartProps {
+  data: PortfolioDataProps;
+  activeIndex: number | null;
+  setActiveIndex: (index: number | null) => void;
+}
 
+export const PortfolioPieChart = ({ 
+  data, 
+  activeIndex, 
+  setActiveIndex 
+}: PortfolioPieChartProps): React.ReactElement => {
   // Transform the data for the pie chart
-  const chartData = Object.entries(dummyData).map(([name, value]) => ({
+  const chartData = Object.entries(data).map(([name, value]) => ({
     name,
     value
   }));
-
-  const [activeIndex, setActiveIndex] = useState(null);
 
   // Original color palette from TransactionChart
   const COLORS = [
@@ -31,7 +31,7 @@ export const PortfolioPieChart = () => {
   ];
 
   // Custom tooltip that matches the TransactionChart style
-  const CustomTooltip = ({ active, payload }) => {
+  const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-black/60 backdrop-blur-sm rounded-md shadow-md p-2">
@@ -43,7 +43,7 @@ export const PortfolioPieChart = () => {
               </span>
             </div>
           </div>
-          <span className={`mt-2 text-sm bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 px-1 rounded-sm`}>
+          <span className="mt-2 text-sm bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 px-1 rounded-sm">
             {payload[0].name}
           </span>
         </div>
@@ -53,7 +53,7 @@ export const PortfolioPieChart = () => {
   };
 
   // Refined active shape for smoother hover effect
-  const renderActiveShape = (props) => {
+  const renderActiveShape = (props: any) => {
     const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill } = props;
     
     // Subtle expansion for hover state
@@ -101,7 +101,7 @@ export const PortfolioPieChart = () => {
   };
 
   // Handle mouse enter on pie sectors
-  const onPieEnter = (_, index) => {
+  const onPieEnter = (_: any, index: number) => {
     setActiveIndex(index);
   };
 
@@ -111,17 +111,17 @@ export const PortfolioPieChart = () => {
   };
 
   // Handle click on pie sectors
-  const onPieClick = (_, index) => {
+  const onPieClick = (_: any, index: number) => {
     setActiveIndex(index === activeIndex ? null : index);
   };
 
   // Render custom legend items
-  const renderLegendItem = (props) => {
+  const renderLegendItem = (props: any) => {
     const { payload } = props;
     
     return (
       <div className="flex flex-wrap gap-4 justify-start mt-2">
-        {payload.map((entry, index) => {
+        {payload.map((entry: any, index: number) => {
           const isActive = activeIndex === index;
           return (
             <div 
@@ -153,52 +153,42 @@ export const PortfolioPieChart = () => {
   };
 
   return (
-    <Card className="border border-b bg-background">
-      <CardHeader>
-        <CardTitle>Portfolio Allocation</CardTitle>
-        <CardDescription>
-          Asset allocation breakdown
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={chartData}
-                cx="50%"
-                cy="50%"
-                innerRadius={70}
-                outerRadius={90}
-                paddingAngle={2}
-                dataKey="value"
-                activeIndex={activeIndex}
-                activeShape={renderActiveShape}
-                onMouseEnter={onPieEnter}
-                onMouseLeave={onPieLeave}
-                onClick={onPieClick}
-                stroke="rgba(0, 0, 0, 0.15)"
-                strokeWidth={1}
-              >
-                {chartData.map((entry, index) => (
-                  <Cell 
-                    key={`cell-${index}`} 
-                    fill={COLORS[index % COLORS.length]} 
-                    className="transition-opacity duration-300"
-                    opacity={activeIndex === null ? 1 : activeIndex === index ? 1 : 0.6}
-                  />
-                ))}
-              </Pie>
-              <Tooltip 
-                content={<CustomTooltip />} 
-                animationDuration={200}
+    <div className="h-[300px]">
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie
+            data={chartData}
+            cx="50%"
+            cy="50%"
+            innerRadius={70}
+            outerRadius={90}
+            paddingAngle={2}
+            dataKey="value"
+            activeIndex={activeIndex}
+            activeShape={renderActiveShape}
+            onMouseEnter={onPieEnter}
+            onMouseLeave={onPieLeave}
+            onClick={onPieClick}
+            stroke="rgba(0, 0, 0, 0.15)"
+            strokeWidth={1}
+          >
+            {chartData.map((entry, index) => (
+              <Cell 
+                key={`cell-${index}`} 
+                fill={COLORS[index % COLORS.length]} 
+                className="transition-opacity duration-300"
+                opacity={activeIndex === null ? 1 : activeIndex === index ? 1 : 0.6}
               />
-              <Legend content={renderLegendItem} />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      </CardContent>
-    </Card>
+            ))}
+          </Pie>
+          <Tooltip 
+            content={<CustomTooltip />} 
+            animationDuration={200}
+          />
+          <Legend content={renderLegendItem} />
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
   );
 };
 

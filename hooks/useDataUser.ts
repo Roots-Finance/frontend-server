@@ -128,7 +128,7 @@ const processTransactions = (
     amount: transaction.amount,
     account_id: transaction.account_id,
     transaction_id: transaction.transaction_id,
-    date: transaction.date,
+    date: new Date(transaction.date),
     merchant_name: transaction.merchant_name ?? "UNKNOWN",
     category: transaction.personal_finance_category?.primary ?? "UNKNOWN",
     name: transaction.name,
@@ -255,6 +255,11 @@ export function useDataUser(): DataUserReturn {
       const processedTransactions = calculateRunningTotal(
         sortTransactionsChronologically(transactions)
       );
+
+      processedTransactions.forEach((transaction) => {
+        transaction.date = new Date(transaction.date);
+      });
+      
       
       return {
         accounts,

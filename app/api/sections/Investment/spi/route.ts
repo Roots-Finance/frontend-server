@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     // In a real application, you would fetch the user's portfolio allocation
     // from your database using the userId
     
-    const response = await apiService.getAiGeneratedPortfolio(userId, monthly_savings);
+    const response = await apiService.getSPIPortfolio(userId, monthly_savings);
 
 
     return NextResponse.json(response);

@@ -1,4 +1,3 @@
-// app/components/dashboard/investment/components/PortfolioAllocationManager.tsx
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -10,20 +9,31 @@ import PortfolioControls from './PortfolioControls';
 /**
  * Component for managing portfolio allocation
  */
-export const PortfolioAllocationManager = ({ user, isLoading }: PortfolioAllocationProps): React.ReactElement => {
-  // Portfolio data state
-  const [portfolioData, setPortfolioData] = useState<PortfolioDataProps>({});
-  
+export const PortfolioAllocationManager = ({ 
+  user, 
+  isLoading, 
+  portfolioData: initialPortfolioData 
+}: PortfolioAllocationProps): React.ReactElement => {
+  // Portfolio data state 
+  const [portfolioData, setPortfolioData] = useState<PortfolioDataProps>(initialPortfolioData || {
+    "US Stocks": 45,
+    "International Stocks": 25,
+    "Bonds": 15,
+    "Real Estate": 10,
+    "Cash": 5
+  });
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [isPortfolioLoading, setIsPortfolioLoading] = useState<boolean>(false);
   const [loadingAction, setLoadingAction] = useState<string>('');
 
-  // Load user's portfolio data when component mounts
+  // Load user's portfolio data when component mounts or when initialPortfolioData changes
   useEffect(() => {
-    if (user?.sub) {
+    if (initialPortfolioData && Object.keys(initialPortfolioData).length > 0) {
+      setPortfolioData(initialPortfolioData);
+    } else if (user?.sub) {
       fetchPortfolioData(user.sub);
     }
-  }, [user?.sub]);
+  }, [user?.sub, initialPortfolioData]);
 
   // Fetch portfolio allocation from API
   const fetchPortfolioData = async (userId: string): Promise<void> => {
@@ -33,18 +43,13 @@ export const PortfolioAllocationManager = ({ user, isLoading }: PortfolioAllocat
       const response = await fetch(`/api/sections/Investment/portfolio?userId=${encodeURIComponent(userId)}`);
       if (!response.ok) throw new Error(`Failed to fetch portfolio data: ${response.status}`);
       
-      const data = await response.json() as PortfolioDataProps;
-      setPortfolioData(data);
+      const data = await response.json();
+      if (data && data.data) {
+        setPortfolioData(data.data);
+      }
     } catch (error) {
       console.error('Error loading portfolio data:', error);
-      // Set fallback data if needed
-      setPortfolioData({
-        "US Stocks": 45,
-        "International Stocks": 25,
-        "Bonds": 15,
-        "Real Estate": 10,
-        "Cash": 5
-      });
+      // Portfolio data stays as default defined in state
     } finally {
       setIsPortfolioLoading(false);
     }
@@ -62,7 +67,7 @@ export const PortfolioAllocationManager = ({ user, isLoading }: PortfolioAllocat
       const response = await fetch(`/api/user/${user.sub}/ai-portfolio`);
       if (!response.ok) throw new Error(`Failed to diversify portfolio: ${response.status}`);
       
-      const result = await response.json() as any;
+      const result = await response.json();
       
       if (result.status === 1 && result.data) {
         // Remove any non-allocation fields like 'reasoning'

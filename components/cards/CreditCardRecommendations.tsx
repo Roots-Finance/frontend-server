@@ -5,7 +5,7 @@ import { Star, ChevronDown, ChevronUp } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { KnotApiClient, KnotApiEvent, KnotApiConfig } from "@/lib/knot_client"
+import { KnotApiClient, KnotApiEvent } from "@/lib/knot_client"
 
 // Create a singleton instance of KnotApiClient
 const knotApiClient = new KnotApiClient();

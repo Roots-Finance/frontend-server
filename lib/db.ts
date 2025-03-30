@@ -361,16 +361,40 @@ export class DBLib {
     }
   }
 
-  async getAiGeneratedPortfolio(oauth_sub: string): Promise<PortfolioRecommendation> {
+  async getAiGeneratedPortfolio(oauth_sub: string, monthly_savings: number): Promise<PortfolioRecommendation> {
     if (!this.baseUrl) {
       throw new Error("Backend URL is not configured");
     }
 
     const response = await fetch(`${this.baseUrl}/api/user/${encodeURIComponent(oauth_sub)}/portfolio/ai`, {
-      method: "GET",
+      method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
+      body: JSON.stringify({
+        monthly_savings: monthly_savings
+      }),
+    });
+
+    console.log(response)
+    const data = (await response.json()) as DBResponse<PortfolioRecommendation>;
+
+    return data.data;
+  }
+
+  async getSPIPortfolio(oauth_sub: string, monthly_savings: number): Promise<PortfolioRecommendation> {
+    if (!this.baseUrl) {
+      throw new Error("Backend URL is not configured");
+    }
+
+    const response = await fetch(`${this.baseUrl}/api/user/${encodeURIComponent(oauth_sub)}/portfolio/spi`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        monthly_savings: monthly_savings
+      }),
     });
 
     const data = (await response.json()) as DBResponse<PortfolioRecommendation>;
