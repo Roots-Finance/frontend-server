@@ -6,7 +6,7 @@ import { SectionCardsGrid } from "@/components/dashboard/SectionCardsGrid";
 import { Section } from "@/components/dashboard/types";
 import { BudgetingSection } from "@/components/dashboard/sections/BudgetingSection";
 import CreditCardRecommendations from "../cards/CreditCardRecommendations";
-import  InvestmentSection  from "@/components/dashboard/sections/InvestmentSection";
+import  { InvestmentSection }  from "@/components/dashboard/sections/InvestmentSection";
 
 // import { getChartData } from "@/lib/data/transactions"
 import { useDataUser } from "@/hooks/useDataUser";
@@ -69,7 +69,6 @@ export function DashboardContent({ selectedSection, onSelectSection }: Dashboard
       </div>
       <div className="col-span-4">
         <SectionCardsGrid onSelectSection={onSelectSection} />
-        <InvestmentQuestionnaireTrigger></InvestmentQuestionnaireTrigger>
       </div>
     </>
   );

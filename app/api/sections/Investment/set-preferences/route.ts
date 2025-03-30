@@ -1,4 +1,4 @@
-// app/api/sections/Investment/set-categories/route.ts
+// app/api/sections/Investment/set-preferences/route.ts
 import apiService from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -18,9 +18,8 @@ export async function POST(request: NextRequest) {
 
     const response = await apiService.sendUserPortfolio(userId, portfolio);
 
-
     // Return the updated portfolio allocation
-    return NextResponse.json(response);
+    return NextResponse.json({});
   } catch (error) {
     console.error('Error saving portfolio categories:', error);
     return NextResponse.json(

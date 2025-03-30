@@ -1,4 +1,4 @@
-import { FullLessonData, PortfolioPreferences } from "@/components/dashboard/types";
+import { FullLessonData, PortfolioPreferences, PortfolioRecommendation } from "@/components/dashboard/types";
 import { CategoryData, DBUser, DBUserData } from "./types";
 
 export interface DBResponse<T extends any> {
@@ -242,10 +242,10 @@ export class DBLib {
 
   /**
    * Sends user portfolio data
-   * @param portfolioData Portfolio data to send
+   * @param portfolioPrefs Portfolio data to send
    * @returns Promise with API response
    */
-  async sendUserPortfolio(oauthSub: string, portfolioData: PortfolioPreferences): Promise<void> {
+  async sendUserPortfolio(oauthSub: string, portfolioPrefs: PortfolioPreferences): Promise<void> {
     if (!this.baseUrl) {
       throw new Error("Backend URL is not configured");
     }
@@ -255,7 +255,7 @@ export class DBLib {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(portfolioData),
+      body: JSON.stringify(portfolioPrefs),
     });
 
     const data = (await response.json()) as DBResponse<void>;
@@ -266,7 +266,7 @@ export class DBLib {
     return data.data;
   }
 
-  async getPortfolio(oauthSub: string): Promise<PortfolioPreferences> {
+  async getPortfolio(oauthSub: string): Promise<PortfolioRecommendation> {
     if (!this.baseUrl) {
       throw new Error("Backend URL is not configured");
     }
@@ -278,12 +278,39 @@ export class DBLib {
       },
     });
 
-    const data = (await response.json()) as DBResponse<PortfolioPreferences>;
+    const data = (await response.json()) as DBResponse<PortfolioRecommendation>;
+
+    console.log(data);
 
     // Add statusCode to the response for internal tracking
     data.statusCode = response.status;
 
     return data.data;
+  }
+
+  async hasPortfolioPreferences(oauthSub: string): Promise<boolean> {
+    if (!this.baseUrl) {
+      throw new Error("Backend URL is not configured");
+    }
+
+    try {
+      const response = await fetch(`${this.baseUrl}/api/user/${encodeURIComponent(oauthSub)}/portfolio/preferences`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      console.log('status', response.status)
+      if (response.status === 404) {
+        return false;
+      }
+
+      return response.status === 200;
+    } catch (err) {
+      console.error("Error checking portfolio preferences:", err);
+      return false;
+    }
   }
 
   /**

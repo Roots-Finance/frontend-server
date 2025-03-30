@@ -18,9 +18,9 @@ export async function GET(request: NextRequest) {
     // In a real application, you would fetch the user's portfolio allocation
     // from your database using the userId
     
-    const response = await apiService.getPortfolio(userId);
+    const response = await apiService.hasPortfolioPreferences(userId);
 
-
+    
     return NextResponse.json(response);
   } catch (error) {
     console.error('Error fetching portfolio categories:', error);
