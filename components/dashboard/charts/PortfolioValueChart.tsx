@@ -103,11 +103,12 @@ export function PortfolioValueChart({
   const prevDataRef = useRef<any[]>([]);
 
   // Default lines
-  const defaultLines: ChartLine[] = [
+  // Change these two color values
+const defaultLines: ChartLine[] = [
     {
       dataKey: "realValue",
       name: "Actual Balance",
-      color: "#3182CE",
+      color: "#31ceb6", // This is already blue, so leave it
       type: "area",
       strokeWidth: 2,
       dot: false,
@@ -115,7 +116,7 @@ export function PortfolioValueChart({
     {
       dataKey: "budgetValue",
       name: "Portfolio Value",
-      color: "#805AD5", // Purple color
+      color: "#3182CE", // Change this from purple (#805AD5) to green (#10B981)
       type: "area",
       strokeWidth: 2,
       dot: false,

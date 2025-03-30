@@ -313,6 +313,29 @@ export class DBLib {
     return data.data;
   }
 
+  async getSpyData(oauthSub: string, monthlySavings: number): Promise<{series: Record<string, number>}> {
+    if (!this.baseUrl) {
+      throw new Error("Backend URL is not configured");
+    }
+  
+    const response = await fetch(`${this.baseUrl}/api/user/${encodeURIComponent(oauthSub)}/spy_portfolio`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        monthly_savings: monthlySavings
+      }),
+    });
+  
+    if (!response.ok) {
+      throw new Error(`Failed to get SPY portfolio data: ${response.status}`);
+    }
+  
+    const data = await response.json() as DBResponse<{series: Record<string, number>}>;
+    return data.data;
+  }
+
   async hasPortfolioPreferences(oauthSub: string): Promise<boolean> {
     if (!this.baseUrl) {
       throw new Error("Backend URL is not configured");

@@ -282,6 +282,7 @@ export function BudgetingSection({ user, userLoading, onBack }: BudgetingSection
     if (!user?.sub) return;
     try {
       setIsSaving(true);
+      console.log(categorySliders)
       const response = await fetch(`/api/sections/Budget/set-categories`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

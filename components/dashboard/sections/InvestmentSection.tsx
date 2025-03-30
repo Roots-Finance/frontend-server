@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft } from "lucide-react";
 import { TransactionChart, ChartLine } from "@/components/dashboard/charts/TransactionChart";
+import { PortfolioValueChart } from "../charts/PortfolioValueChart";
 import { ExtendedUser } from "@/hooks/useDataUser";
 import { LessonViewer } from "@/components/dashboard/LessonViewer";
 import { FullLessonData, Lesson } from "@/components/dashboard/types";
@@ -310,13 +311,7 @@ export function InvestmentSection({
         </Card>
         
         {/* Investment Chart Card */}
-        <TransactionChart 
-          data={chartData}
-          useDefaultLine={false}
-          title="Investment Growth"
-          description="Track the cumulative value of your investments over time"
-          lines={lines}
-        />
+        <PortfolioValueChart></PortfolioValueChart>
 
         {/* Portfolio Allocation Manager */}
         {!isChartLoading && !chartError && (
