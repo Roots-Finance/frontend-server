@@ -69,7 +69,7 @@ export function SideNav({ selectedSection, onSelectSection, onExpand }: SideNavP
     >
       <div className="h-16 flex items-center justify-center border-b">
         <span className={cn("font-bold", isExpanded ? "text-xl" : "text-sm")}>
-          {isExpanded ? "FinApp" : "FA"}
+          {isExpanded ? "Roots" : "R"}
         </span>
       </div>
       

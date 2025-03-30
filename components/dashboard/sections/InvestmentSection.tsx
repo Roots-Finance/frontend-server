@@ -1,4 +1,4 @@
-import PortfolioAllocationManager from "./PortfolioAllocationManager";
+import PortfolioAllocationManager from "../PortfolioAllocationManager";
 import { TransactionChart } from "../charts/TransactionChart";
 import { useState, useEffect } from "react";
 import InvestmentQuestionnairePopup from "../InvestmentQuestionnairePopup"; 
