@@ -10,6 +10,7 @@ import  { InvestmentSection }  from "@/components/dashboard/sections/InvestmentS
 
 // import { getChartData } from "@/lib/data/transactions"
 import { useDataUser } from "@/hooks/useDataUser";
+import TaxSection from "./sections/TaxSection";
 
 interface DashboardContentProps {
   selectedSection: Section;
@@ -45,6 +46,8 @@ export function DashboardContent({ selectedSection, onSelectSection }: Dashboard
          return <CreditCardRecommendations 
           user={user}
          />;
+        case "Taxes":
+          return <TaxSection user={user} />;
       default:
         if (!user.data) return null;
         console.log("dashboard")

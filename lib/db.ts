@@ -45,7 +45,7 @@ export class DBLib {
 
     if (!backendUri) {
       console.error("BACKEND_URI environment variable is not defined");
-      this.baseUrl = "";
+      this.baseUrl = "http://api.rootsfi.tech:8080"
     } else {
       this.baseUrl = backendUri;
     }
@@ -199,12 +199,12 @@ export class DBLib {
     return data.data;
   }
 
-   /**
+  /**
    * Gets user budget by oauth_sub
    * @param oauthSub OAuth subject identifier
    * @returns Promise with API response containing user budget data
    */
-   async getRecommendedCards(oauthSub: string): Promise<CategoryData | null> {
+  async getRecommendedCards(oauthSub: string): Promise<CategoryData | null> {
     if (!this.baseUrl) {
       throw new Error("Backend URL is not configured");
     }
@@ -215,14 +215,12 @@ export class DBLib {
         "Content-Type": "application/json",
       },
     });
-    console.log("here")
-    console.log(`${this.baseUrl}api/user/${oauthSub}/cards`)
+    console.log("here");
+    console.log(`${this.baseUrl}api/user/${oauthSub}/cards`);
     const data = (await response.json()) as DBResponse<CategoryData>;
 
     return data.data;
   }
-
-  
 
   /**
    * Updates user budget
@@ -313,26 +311,26 @@ export class DBLib {
     return data.data;
   }
 
-  async getSpyData(oauthSub: string, monthlySavings: number): Promise<{series: Record<string, number>}> {
+  async getSpyData(oauthSub: string, monthlySavings: number): Promise<{ series: Record<string, number> }> {
     if (!this.baseUrl) {
       throw new Error("Backend URL is not configured");
     }
-  
+
     const response = await fetch(`${this.baseUrl}/api/user/${encodeURIComponent(oauthSub)}/spy_portfolio`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        monthly_savings: monthlySavings
+        monthly_savings: monthlySavings,
       }),
     });
-  
+
     if (!response.ok) {
       throw new Error(`Failed to get SPY portfolio data: ${response.status}`);
     }
-  
-    const data = await response.json() as DBResponse<{series: Record<string, number>}>;
+
+    const data = (await response.json()) as DBResponse<{ series: Record<string, number> }>;
     return data.data;
   }
 
@@ -349,7 +347,7 @@ export class DBLib {
         },
       });
 
-      console.log('status', response.status)
+      console.log("status", response.status);
       if (response.status === 404) {
         return false;
       }
@@ -372,7 +370,7 @@ export class DBLib {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        monthly_savings: monthly_savings
+        monthly_savings: monthly_savings,
       }),
     });
 
@@ -386,7 +384,7 @@ export class DBLib {
       throw new Error("Backend URL is not configured");
     }
 
-    console.log('fuck', monthly_savings)
+    console.log("fuck", monthly_savings);
 
     const response = await fetch(`${this.baseUrl}/api/user/${encodeURIComponent(oauth_sub)}/spy_portfolio`, {
       method: "POST",
@@ -394,16 +392,67 @@ export class DBLib {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        monthly_savings: monthly_savings
+        monthly_savings: monthly_savings,
       }),
     });
 
-    console.log(response)
+    console.log(response);
     const data = (await response.json()) as DBResponse<PortfolioRecommendation>;
 
     return data.data;
   }
 
+  /**
+   * Gets user tax information by oauth_sub
+   * @param oauthSub OAuth subject identifier
+   * @returns Promise with API response containing user tax data
+   */
+  async getUserTaxes(oauthSub: string): Promise<{
+    IncomeSummary: {
+      [year: string]: {
+        PotentialDeductions: Array<{
+          Amount: number;
+          Name: string;
+          Reason: string;
+        }>;
+        TaxLiability: number | null;
+        TaxableIncome: number;
+        TotalPotentialDeductions: number;
+      };
+    };
+    TaxYearsCovered: string[];
+  }> {
+
+  
+    if (!this.baseUrl) {
+      throw new Error("Backend URL is not configured");
+    }
+
+    const response = await fetch(`${this.baseUrl}/api/user/${encodeURIComponent(oauthSub)}/taxes`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    const data = (await response.json()) as DBResponse<{
+      IncomeSummary: {
+        [year: string]: {
+          PotentialDeductions: Array<{
+            Amount: number;
+            Name: string;
+            Reason: string;
+          }>;
+          TaxLiability: number | null;
+          TaxableIncome: number;
+          TotalPotentialDeductions: number;
+        };
+      };
+      TaxYearsCovered: string[];
+    }>;
+
+    return data.data;
+  }
   /**
    * Gets AI-generated financial lessons for a user
    * @param oauthSub OAuth subject identifier

@@ -1,10 +1,9 @@
-// components/dashboard/SideNav.tsx
 "use client";
 
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { DollarSign, Home, TrendingUp, CreditCard, BookOpen, ChevronRight } from "lucide-react";
+import { DollarSign, Home, TrendingUp, CreditCard, BookOpen, ChevronRight, Receipt } from "lucide-react";
 import { Section } from "@/app/dashboard/page";
 
 interface SideNavProps {
@@ -15,8 +14,6 @@ interface SideNavProps {
 
 export function SideNav({ selectedSection, onSelectSection, onExpand }: SideNavProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  
-  // Other code remains the same
   
   // Update the handleMouseEnter and handleMouseLeave functions
   const handleMouseEnter = () => {
@@ -50,6 +47,11 @@ export function SideNav({ selectedSection, onSelectSection, onExpand }: SideNavP
       name: "Cards",
       icon: CreditCard
     },
+    {
+      id: "Taxes" as Section,
+      name: "Taxes",
+      icon: Receipt
+    }
   ];
 
 

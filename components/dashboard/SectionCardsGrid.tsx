@@ -1,10 +1,8 @@
-// components/dashboard/SectionCardsGrid.tsx 
 "use client";
 
-import { DollarSign, TrendingUp, BanIcon, BookOpen } from "lucide-react";
+import { DollarSign, TrendingUp, BanIcon, BookOpen, Receipt } from "lucide-react";
 import { SectionCard } from "@/components/dashboard/SectionCard";
 import { Section } from "./types";
-
 
 interface SectionCardsGridProps {
   onSelectSection: (section: Section) => void;
@@ -39,18 +37,27 @@ export function SectionCardsGrid({ onSelectSection }: SectionCardsGridProps) {
       icon: BookOpen,
       buttonText: 'Advanced Topics',
       gridClass: 'col-span-1 md:col-span-1 lg:col-span-2'
+    },
+    {
+      id: 'Taxes' as Section,
+      title: 'Taxes',
+      description: 'Optimize your tax strategy',
+      content: 'Review potential deductions, understand tax liability, and plan for tax season.',
+      icon: Receipt,
+      buttonText: 'View Tax Information',
+      gridClass: 'col-span-1 md:col-span-1 lg:col-span-2'
     }
   ];
 
-  // Group sections into top row and bottom row
-  const topRowSections = sections.slice(0, 2);
-  const bottomRowSections = sections.slice(2);
+  // Group sections into rows of 2
+  const firstRow = sections.slice(0, 2);
+  const secondRow = sections.slice(2, 4);
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Top row - Budgeting and Stock Investments */}
+      {/* First row */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {topRowSections.map(section => (
+        {firstRow.map(section => (
           <SectionCard
             key={section.id}
             title={section.title}
@@ -63,9 +70,9 @@ export function SectionCardsGrid({ onSelectSection }: SectionCardsGridProps) {
         ))}
       </div>
       
-      {/* Bottom row - Bonds and Stock Trading */}
+      {/* Second row */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {bottomRowSections.map(section => (
+        {secondRow.map(section => (
           <SectionCard
             key={section.id}
             title={section.title}
