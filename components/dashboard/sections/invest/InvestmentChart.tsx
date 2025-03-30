@@ -37,7 +37,7 @@ export const InvestmentChart = ({
             </Button>
           </div>
         ) : (
-          <TransactionChart title="" description="" data={chartData} lines={lines} />
+          <TransactionChart title="" description="" data={chartData} useDefaultLine={false} lines={lines} />
         )}
       </CardContent>
     </Card>

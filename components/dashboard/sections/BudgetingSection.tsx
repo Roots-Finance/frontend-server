@@ -258,21 +258,20 @@ export function BudgetingSection({ user, userLoading, onBack }: BudgetingSection
   const handleAISliders = async () => {
     if (!user?.sub) return;
     try {
-      const response = await fetch(`/api/user/${user.sub}/ai-budget`);
+      const response = await fetch(`/api/sections/Budget/ai-categories?userId=${encodeURIComponent(user.sub)}`);
       if (!response.ok) throw new Error("Failed to fetch AI categories");
       const responseData = await response.json();
-      if (responseData.status === 1 && responseData.data) {
-        const aiData = responseData.data;
-        // Extract reasoning if it exists
-        const reasoning = aiData.reasoning || "";
-        delete aiData.reasoning;
-        
-        setUserBudget(aiData);
-        setCategorySliders(aiData);
-        setAiReasoning(reasoning);
-      } else {
-        throw new Error(responseData.message || "Invalid AI budget response format");
-      }
+      console.log(response)
+    
+      const aiData = responseData;
+      // Extract reasoning if it exists
+      const reasoning = aiData.reasoning || "";
+      delete aiData.reasoning;
+      
+      setUserBudget(aiData);
+      setCategorySliders(aiData);
+      setAiReasoning(reasoning);
+      
     } catch (err) {
       console.error("Error updating AI sliders:", err);
     }
