@@ -151,6 +151,7 @@ export default function CreditCardRecommendations({ user }) {
 
   // Open the Knot card switcher using KnotApiClient
   const openKnotCardSwitcher = (card) => {
+    console.log(card)
     if (!knotSessionId) {
       console.error("No Knot session ID available");
       fetchKnotSession(); // Try to fetch session again

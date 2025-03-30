@@ -55,9 +55,6 @@ export default function Dashboard() {
         
         <main className="px-4 py-8">
           {/* Setup Banner - only shown on main dashboard view */}
-          {showSetupAlert && (
-            <SetupAlert progress={user.setupProgress} />
-          )}
 
           <h2 className="text-2xl font-bold mb-6 text-foreground">
             {selectedSection || 'Dashboard'}
