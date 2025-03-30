@@ -1,7 +1,7 @@
 // components/dashboard/TransactionChart.tsx
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Area, AreaChart, CartesianGrid, Line, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { getTransactionColor } from "../sections/utils";
@@ -33,11 +33,9 @@ export function TransactionChart({
   children,
 }: TransactionChartProps) {
 
-
   // Zoom and pan state
   const [zoomLevel, setZoomLevel] = useState(1);
   const [zoomCenter, setZoomCenter] = useState(0.5);
-  const [visibleData, setVisibleData] = useState<ITransaction[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartX, setDragStartX] = useState(0);
   
@@ -45,7 +43,71 @@ export function TransactionChart({
   const MAX_ZOOM = 5;
   
   // Track previous calculation inputs to prevent infinite updates
-  const prevCalcInputsRef = useRef({ dataLength: -1, zoomLevel: -1, zoomCenter: -1 });
+  const prevCalcInputsRef = useRef({ 
+    dataLength: -1, 
+    zoomLevel: -1, 
+    zoomCenter: -1 
+  });
+  
+  // Keep a reference to previous data for comparison
+  const prevDataRef = useRef<ITransaction[]>([]);
+
+  // Optimized hasDataChanged function with string comparison
+  const hasDataChanged = (prevData: ITransaction[], newData: ITransaction[]) => {
+    if (!prevData || !newData) return true;
+    if (prevData.length !== newData.length) return true;
+    
+    // Check first and last elements via stringify
+    if (prevData.length > 0) {
+      const firstPrevStr = JSON.stringify({
+        date: prevData[0].date,
+        total: prevData[0].overallTotal
+      });
+      const firstNewStr = JSON.stringify({
+        date: newData[0].date,
+        total: newData[0].overallTotal
+      });
+      
+      const lastPrevStr = JSON.stringify({
+        date: prevData[prevData.length - 1].date,
+        total: prevData[prevData.length - 1].overallTotal
+      });
+      const lastNewStr = JSON.stringify({
+        date: newData[newData.length - 1].date,
+        total: newData[newData.length - 1].overallTotal
+      });
+      
+      if (firstPrevStr !== firstNewStr || lastPrevStr !== lastNewStr) {
+        return true;
+      }
+    }
+    
+    // Sample a few elements in the middle for larger datasets
+    if (newData.length > 10) {
+      const sampleIndices = [
+        Math.floor(newData.length * 0.25),
+        Math.floor(newData.length * 0.5),
+        Math.floor(newData.length * 0.75)
+      ];
+      
+      for (const idx of sampleIndices) {
+        const prevItemStr = JSON.stringify({
+          date: prevData[idx].date,
+          total: prevData[idx].overallTotal
+        });
+        const newItemStr = JSON.stringify({
+          date: newData[idx].date,
+          total: newData[idx].overallTotal
+        });
+        
+        if (prevItemStr !== newItemStr) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  };
 
   // Default line for balance
   const defaultLine: ChartLine = {
@@ -59,6 +121,61 @@ export function TransactionChart({
 
   // Combine default line with custom lines
   const allLines = [defaultLine, ...lines];
+
+  // Calculate visible data based on zoom level and center
+  const calculateVisibleData = (data: ITransaction[], zoomLevel: number, zoomCenter: number) => {
+    if (data.length === 0) return [];
+    if (zoomLevel <= 1) return data;
+
+    // Calculate the visible window
+    const windowSize = 1 / zoomLevel;
+    const halfWindowSize = windowSize / 2;
+    
+    // Calculate start and end positions
+    let startPos = Math.max(0, zoomCenter - halfWindowSize);
+    let endPos = Math.min(1, zoomCenter + halfWindowSize);
+    
+    // Adjust if window is partially outside the data range
+    if (startPos < 0) {
+      endPos = Math.min(1, endPos - startPos);
+      startPos = 0;
+    }
+    if (endPos > 1) {
+      startPos = Math.max(0, startPos - (endPos - 1));
+      endPos = 1;
+    }
+    
+    // Calculate actual indices
+    const startIndex = Math.floor(startPos * (data.length - 1));
+    const endIndex = Math.ceil(endPos * (data.length - 1));
+    
+    return data.slice(startIndex, endIndex + 1);
+  };
+
+  // Use useMemo to calculate visible data only when necessary
+  const visibleData = useMemo(() => {
+    // Check if data has meaningfully changed
+    const dataChanged = hasDataChanged(prevDataRef.current, data);
+    const zoomChanged = 
+      prevCalcInputsRef.current.zoomLevel !== zoomLevel || 
+      prevCalcInputsRef.current.zoomCenter !== zoomCenter;
+    
+    if (dataChanged || zoomChanged) {
+      // Save current values for next comparison
+      prevDataRef.current = [...data];
+      prevCalcInputsRef.current = { 
+        dataLength: data.length, 
+        zoomLevel, 
+        zoomCenter 
+      };
+      
+      // Recalculate visible data
+      return calculateVisibleData(data, zoomLevel, zoomCenter);
+    }
+    
+    // Use previously calculated data if nothing has changed
+    return calculateVisibleData(data, zoomLevel, zoomCenter);
+  }, [data, zoomLevel, zoomCenter]);
 
   // Setup wheel event listeners for zooming
   useEffect(() => {
@@ -104,47 +221,6 @@ export function TransactionChart({
       window.removeEventListener('resize', handleResize);
     };
   }, [zoomLevel, zoomCenter]);
-
-  // Calculate visible data based on zoom level and center
-  const calculateVisibleData = (data: ITransaction[], zoomLevel: number, zoomCenter: number) => {
-    if (data.length === 0) return [];
-    if (zoomLevel <= 1) return data;
-
-    // Calculate the visible window
-    const windowSize = 1 / zoomLevel;
-    const halfWindowSize = windowSize / 2;
-    
-    // Calculate start and end positions
-    let startPos = Math.max(0, zoomCenter - halfWindowSize);
-    let endPos = Math.min(1, zoomCenter + halfWindowSize);
-    
-    // Adjust if window is partially outside the data range
-    if (startPos < 0) {
-      endPos = Math.min(1, endPos - startPos);
-      startPos = 0;
-    }
-    if (endPos > 1) {
-      startPos = Math.max(0, startPos - (endPos - 1));
-      endPos = 1;
-    }
-    
-    // Calculate actual indices
-    const startIndex = Math.floor(startPos * (data.length - 1));
-    const endIndex = Math.ceil(endPos * (data.length - 1));
-    
-    return data.slice(startIndex, endIndex + 1);
-  };
-
-  // Update visible data when zoom or data changes
-  useEffect(() => {
-    // Always update visible data when the data prop changes
-    setVisibleData(calculateVisibleData(data, zoomLevel, zoomCenter));
-    prevCalcInputsRef.current = { 
-      dataLength: data.length, 
-      zoomLevel, 
-      zoomCenter 
-    };
-  }, [data, zoomLevel, zoomCenter]);
 
   // Event handlers for panning
   const handleContextMenu = (e: React.MouseEvent) => {

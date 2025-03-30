@@ -55,35 +55,48 @@ interface BudgetingSectionProps {
   onBack: () => void;
 }
 
-/** A simplified, modularized component for the category sliders. */
+/** Updated props for the sliders card to include savings information. */
 interface CategorySlidersCardProps {
   uniqueCategories: string[];
   categorySliders: BudgetData;
+  spendingData: { [category: string]: number }; // spending totals per category
   isSaving: boolean;
   reasoning?: string;
   onSliderChange: (category: string, values: number[]) => void;
   onSaveBudget: () => void;
   onAISliders: () => void;
+  totalSavings: number;
+  perMonthSaving: number;
 }
 
 function CategorySlidersCard({
   uniqueCategories,
   categorySliders,
+  spendingData,
   isSaving,
   reasoning,
   onSliderChange,
   onSaveBudget,
   onAISliders,
+  totalSavings,
+  perMonthSaving,
 }: CategorySlidersCardProps) {
   return (
     <Card className="border shadow-sm">
-      <CardHeader className="flex justify-between items-center">
-        <div>
+      <CardHeader className="flex items-center justify-between">
+        {/* Left side: Title and Description */}
+        <div className="flex-1">
           <CardTitle className="text-xl font-bold">Spending Category Adjustments</CardTitle>
           <CardDescription className="text-sm">
             Adjust the sliders to see how changes in your spending affect your finances.
           </CardDescription>
         </div>
+        {/* Center: Total Savings Display */}
+        <div className="mx-4 text-center">
+          <h2 className="text-2xl font-bold text-green-600">${totalSavings.toFixed(2)}</h2>
+          <p className="text-sm text-green-600">Per Month: ${perMonthSaving.toFixed(2)}</p>
+        </div>
+        {/* Right side: Buttons */}
         <div className="flex gap-2">
           <Button onClick={onAISliders} variant="outline" size="sm">
             AI Sliders
@@ -108,38 +121,45 @@ function CategorySlidersCard({
           </Button>
         </div>
       </CardHeader>
-      {/* Display AI reasoning if available */}
+      {/* Optionally display AI reasoning */}
       {reasoning && (
         <div className="mx-4 my-2 p-3 bg-gray-100 rounded-md text-sm italic">
           {reasoning}
         </div>
       )}
       <CardContent className="space-y-6">
-        {uniqueCategories.map((category) => (
-          <div key={category} className="space-y-2">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center space-x-2">
-                <DollarSign className="h-4 w-4 text-primary" />
-                <span className="font-medium">{category}</span>
+        {uniqueCategories.map((category) => {
+          const sliderValue = categorySliders[category] || 100;
+          // Retrieve total spending for this category
+          const totalSpent = spendingData[category] || 0;
+          // Calculate saved amount based on slider value
+          const savedAmount = totalSpent * (100 - sliderValue) / 100;
+          return (
+            <div key={category} className="space-y-2">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center space-x-2">
+                  <DollarSign className="h-4 w-4 text-primary" />
+                  <span className="font-medium">{category}</span>
+                </div>
+                <span className="text-sm font-medium">{sliderValue}%</span>
               </div>
-              <span className="text-sm font-medium">{categorySliders[category] || 100}%</span>
+              <Slider
+                defaultValue={[sliderValue]}
+                value={[sliderValue]}
+                max={100}
+                min={0}
+                step={1}
+                onValueChange={(values) => onSliderChange(category, values)}
+                className="w-full"
+              />
+              <p className="text-xs text-muted-foreground">
+                {sliderValue === 100
+                  ? "No reduction in spending"
+                  : `Reduced to ${sliderValue}% of spending, saving $${savedAmount.toFixed(2)}`}
+              </p>
             </div>
-            <Slider
-              defaultValue={[categorySliders[category] || 100]}
-              value={[categorySliders[category] || 100]}
-              max={100}
-              min={0}
-              step={1}
-              onValueChange={(values) => onSliderChange(category, values)}
-              className="w-full"
-            />
-            <p className="text-xs text-muted-foreground">
-              {categorySliders[category] === 100
-                ? "No reduction in spending"
-                : `Reduced to ${categorySliders[category]}% of current spending`}
-            </p>
-          </div>
-        ))}
+          );
+        })}
       </CardContent>
     </Card>
   );
@@ -161,8 +181,9 @@ export function BudgetingSection({ user, userLoading, onBack }: BudgetingSection
   const [uniqueCategories, setUniqueCategories] = useState<string[]>([]);
   const [userBudget, setUserBudget] = useState<BudgetData | null>(null);
   const [aiReasoning, setAiReasoning] = useState<string>("");
+  const [spendingData, setSpendingData] = useState<{ [category: string]: number }>({});
 
-  // Initial load for default categories; fallback to all 100 if no data.
+  // Initial load for default categories
   useEffect(() => {
     const loadDefaultCategories = async () => {
       if (!user?.sub) return;
@@ -182,7 +203,7 @@ export function BudgetingSection({ user, userLoading, onBack }: BudgetingSection
     loadDefaultCategories();
   }, [user?.sub]);
 
-  // Update unique categories from user's transactions and initialize missing sliders to 100
+  // Update unique categories and compute spending totals
   useEffect(() => {
     if (user?.data?.transactions) {
       const categories = Array.from(
@@ -190,11 +211,16 @@ export function BudgetingSection({ user, userLoading, onBack }: BudgetingSection
       ).filter(category =>
         user.data!.transactions.some(tx => tx.category === category && !tx.isCredit)
       );
-      for (const category of categories) {
-        console.log(category, user.data!.transactions.filter(tx => tx.category === category && !tx.isCredit));
-      }
-      
       setUniqueCategories(categories);
+      
+      const totals: { [key: string]: number } = {};
+      user.data.transactions.forEach(tx => {
+        if (tx.category && !tx.isCredit) {
+          totals[tx.category] = (totals[tx.category] || 0) + tx.amount;
+        }
+      });
+      setSpendingData(totals);
+
       setCategorySliders(prev => {
         const updated = { ...prev };
         categories.forEach(category => {
@@ -204,6 +230,8 @@ export function BudgetingSection({ user, userLoading, onBack }: BudgetingSection
       });
     }
   }, [user?.data?.transactions]);
+
+  console.log(user?.data?.accounts)
 
   // Fetch chart data and section content
   useEffect(() => {
@@ -252,7 +280,7 @@ export function BudgetingSection({ user, userLoading, onBack }: BudgetingSection
     setChartData(updatedProjection);
   }, [categorySliders, user]);
 
-  // AI Sliders: Fetch new slider values (with extra "reasoning") from the ai endpoint.
+  // AI Sliders: Fetch new slider values from the AI endpoint.
   const handleAISliders = async () => {
     if (!user?.sub) return;
     try {
@@ -301,6 +329,42 @@ export function BudgetingSection({ user, userLoading, onBack }: BudgetingSection
       dot: false,
     },
   ];
+
+  // Compute total savings across all categories
+  const totalSavings = uniqueCategories.reduce((acc, category) => {
+    const sliderValue = categorySliders[category] || 100;
+    const totalSpent = spendingData[category] || 0;
+    return acc + totalSpent * (100 - sliderValue) / 100;
+  }, 0);
+
+  // Determine the number of months in the data period.
+  let earliest: Date | undefined;
+  let latest: Date | undefined;
+  for (const tx of chartData) {
+    const date = new Date(tx.date);
+    if (!earliest || date < earliest) earliest = date;
+    if (!latest || date > latest) latest = date;
+  }
+
+  if (!earliest || !latest) {
+    return (
+      <div className="space-y-6">
+        <Card className="border shadow-sm">
+          <CardHeader>
+            <Button variant="ghost" size="sm" className="w-24 flex items-center justify-center mb-4" onClick={onBack}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back
+            </Button>
+            <CardTitle>Budgeting</CardTitle>
+            <CardDescription>No transaction data available</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
+
+  const months = (latest.getFullYear() - earliest.getFullYear()) * 12 + latest.getMonth() - earliest.getMonth() + 1;
+  const perMonthSaving = totalSavings / months;
 
   if (isLoading) {
     return (
@@ -384,15 +448,19 @@ export function BudgetingSection({ user, userLoading, onBack }: BudgetingSection
         </CardContent>
       </Card>
 
+      {/* Sliders Card with embedded Total Savings Display */}
       {uniqueCategories.length > 0 && (
         <CategorySlidersCard 
           uniqueCategories={uniqueCategories}
           categorySliders={categorySliders}
+          spendingData={spendingData}
           isSaving={isSaving}
           reasoning={aiReasoning}
           onSliderChange={handleSliderChange}
           onSaveBudget={handleSaveBudget}
           onAISliders={handleAISliders}
+          totalSavings={totalSavings}
+          perMonthSaving={perMonthSaving}
         />
       )}
 
